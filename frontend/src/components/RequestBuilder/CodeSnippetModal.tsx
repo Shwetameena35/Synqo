@@ -9,6 +9,7 @@ interface CodeSnippetModalProps {
   headers?: { key: string; value: string; enabled?: boolean }[];
   params?: { key: string; value: string; enabled?: boolean }[];
   body?: string;
+  bodyType?: string;
   onOpenSdkStudio?: () => void;
 }
 
@@ -22,6 +23,7 @@ export const CodeSnippetModal: React.FC<CodeSnippetModalProps> = ({
   headers = [],
   params = [],
   body = '',
+  bodyType = 'json',
   onOpenSdkStudio,
 }) => {
   const [selectedLang, setSelectedLang] = useState<Lang>('curl');
@@ -48,8 +50,39 @@ export const CodeSnippetModal: React.FC<CodeSnippetModalProps> = ({
       cmd += ` \\\n  -H "${h.key}: ${h.value}"`;
     });
     if (body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(upperMethod)) {
-      const sanitized = body.replace(/"/g, '\\"').replace(/\n/g, '');
-      cmd += ` \\\n  -d "${sanitized}"`;
+      if (bodyType === 'form-data') {
+        try {
+          const items = JSON.parse(body);
+          if (Array.isArray(items)) {
+            items.filter((i: any) => i.enabled && i.key).forEach((i: any) => {
+              if (i.type === 'file') {
+                cmd += ` \\\n  -F "${i.key}=@${i.value || 'file.bin'}"`;
+              } else {
+                cmd += ` \\\n  -F "${i.key}=${i.value}"`;
+              }
+            });
+          }
+        } catch {
+          cmd += ` \\\n  -d "${body}"`;
+        }
+      } else if (bodyType === 'x-www-form-urlencoded') {
+        try {
+          const items = JSON.parse(body);
+          if (Array.isArray(items)) {
+            const encoded = items
+              .filter((i: any) => i.enabled && i.key)
+              .map((i: any) => `${encodeURIComponent(i.key)}=${encodeURIComponent(i.value)}`)
+              .join('&');
+            cmd += ` \\\n  -H "Content-Type: application/x-www-form-urlencoded"`;
+            cmd += ` \\\n  --data "${encoded}"`;
+          }
+        } catch {
+          cmd += ` \\\n  -d "${body}"`;
+        }
+      } else {
+        const sanitized = body.replace(/"/g, '\\"').replace(/\n/g, '');
+        cmd += ` \\\n  -d "${sanitized}"`;
+      }
     }
     return cmd;
   };
@@ -61,20 +94,55 @@ export const CodeSnippetModal: React.FC<CodeSnippetModalProps> = ({
     });
 
     let code = `// Vanilla JavaScript (Fetch API)\n`;
-    code += `const response = await fetch("${fullUrl}", {\n`;
-    code += `  method: "${upperMethod}",\n`;
-    if (enabledHeaders.length > 0) {
-      code += `  headers: ${JSON.stringify(headersObj, null, 4).replace(/\n/g, '\n  ')},\n`;
-    }
-    if (body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(upperMethod)) {
+    if (bodyType === 'form-data') {
+      code += `const formData = new FormData();\n`;
       try {
-        const parsed = JSON.parse(body);
-        code += `  body: JSON.stringify(${JSON.stringify(parsed, null, 4).replace(/\n/g, '\n  ')}),\n`;
-      } catch {
-        code += `  body: ${JSON.stringify(body)},\n`;
+        const items = JSON.parse(body);
+        if (Array.isArray(items)) {
+          items.filter((i: any) => i.enabled && i.key).forEach((i: any) => {
+            code += `formData.append("${i.key}", "${i.value}");\n`;
+          });
+        }
+      } catch {}
+      code += `\nconst response = await fetch("${fullUrl}", {\n`;
+      code += `  method: "${upperMethod}",\n`;
+      if (enabledHeaders.length > 0) {
+        code += `  headers: ${JSON.stringify(headersObj, null, 4).replace(/\n/g, '\n  ')},\n`;
       }
+      code += `  body: formData,\n`;
+      code += `});\n\n`;
+    } else if (bodyType === 'x-www-form-urlencoded') {
+      code += `const formParams = new URLSearchParams();\n`;
+      try {
+        const items = JSON.parse(body);
+        if (Array.isArray(items)) {
+          items.filter((i: any) => i.enabled && i.key).forEach((i: any) => {
+            code += `formParams.append("${i.key}", "${i.value}");\n`;
+          });
+        }
+      } catch {}
+      headersObj['Content-Type'] = headersObj['Content-Type'] || 'application/x-www-form-urlencoded';
+      code += `\nconst response = await fetch("${fullUrl}", {\n`;
+      code += `  method: "${upperMethod}",\n`;
+      code += `  headers: ${JSON.stringify(headersObj, null, 4).replace(/\n/g, '\n  ')},\n`;
+      code += `  body: formParams,\n`;
+      code += `});\n\n`;
+    } else {
+      code += `const response = await fetch("${fullUrl}", {\n`;
+      code += `  method: "${upperMethod}",\n`;
+      if (enabledHeaders.length > 0) {
+        code += `  headers: ${JSON.stringify(headersObj, null, 4).replace(/\n/g, '\n  ')},\n`;
+      }
+      if (body && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(upperMethod)) {
+        try {
+          const parsed = JSON.parse(body);
+          code += `  body: JSON.stringify(${JSON.stringify(parsed, null, 4).replace(/\n/g, '\n  ')}),\n`;
+        } catch {
+          code += `  body: ${JSON.stringify(body)},\n`;
+        }
+      }
+      code += `});\n\n`;
     }
-    code += `});\n\n`;
     code += `const data = await response.json();\n`;
     code += `console.log(data);`;
     return code;

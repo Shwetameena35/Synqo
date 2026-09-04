@@ -28,6 +28,13 @@ export interface HeaderParamItem {
   enabled: boolean;
 }
 
+export interface FormDataItem {
+  key: string;
+  value: string;
+  enabled: boolean;
+  type?: 'text' | 'file';
+}
+
 export interface AssertionRule {
   type: 'status_code' | 'response_time' | 'body_contains' | 'header_exists';
   operator: 'equals' | 'not_equals' | 'less_than' | 'greater_than' | 'contains' | 'is_2xx';
@@ -59,6 +66,22 @@ export interface RequestItem {
   authConfig: string; // JSON
   tests: string;      // JSON
   orderIndex: number;
+}
+
+export interface RequestComment {
+  id: string;
+  requestId: string;
+  workspaceId: string;
+  parentId?: string;
+  authorId: string;
+  authorName: string;
+  authorEmail?: string;
+  content: string;
+  status: 'open' | 'resolved';
+  statusCode?: number;
+  replies?: RequestComment[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Folder {

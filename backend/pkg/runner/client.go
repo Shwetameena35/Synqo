@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +18,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+// FormFieldItem represents a form-data or urlencoded item
+type FormFieldItem struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Enabled bool   `json:"enabled"`
+	Type    string `json:"type"` // "text" or "file"
+}
 
 // HeaderItem represents an outgoing HTTP header
 type HeaderItem struct {
@@ -113,8 +122,72 @@ func ExecuteRequest(c *gin.Context) {
 
 	// 3. Prepare Request Body
 	var bodyReader io.Reader
-	if payload.BodyType != "none" && bodyContent != "" {
-		bodyReader = bytes.NewBufferString(bodyContent)
+	var autoContentType string
+
+	switch strings.ToLower(payload.BodyType) {
+	case "json":
+		if bodyContent != "" {
+			bodyReader = bytes.NewBufferString(bodyContent)
+		}
+		autoContentType = "application/json"
+
+	case "raw":
+		if bodyContent != "" {
+			bodyReader = bytes.NewBufferString(bodyContent)
+		}
+		autoContentType = "text/plain"
+
+	case "x-www-form-urlencoded":
+		var formItems []FormFieldItem
+		if err := json.Unmarshal([]byte(bodyContent), &formItems); err == nil && len(formItems) > 0 {
+			formVals := url.Values{}
+			for _, item := range formItems {
+				if item.Enabled && item.Key != "" {
+					k := item.Key
+					v := item.Value
+					if payload.EnvironmentID != "" {
+						k = environment.ResolveVariables(k, payload.EnvironmentID, db)
+						v = environment.ResolveVariables(v, payload.EnvironmentID, db)
+					}
+					formVals.Add(k, v)
+				}
+			}
+			bodyReader = strings.NewReader(formVals.Encode())
+		} else if bodyContent != "" {
+			bodyReader = strings.NewReader(bodyContent)
+		}
+		autoContentType = "application/x-www-form-urlencoded"
+
+	case "form-data", "formdata":
+		var formItems []FormFieldItem
+		if err := json.Unmarshal([]byte(bodyContent), &formItems); err == nil && len(formItems) > 0 {
+			bodyBuf := &bytes.Buffer{}
+			mpWriter := multipart.NewWriter(bodyBuf)
+			for _, item := range formItems {
+				if item.Enabled && item.Key != "" {
+					k := item.Key
+					v := item.Value
+					if payload.EnvironmentID != "" {
+						k = environment.ResolveVariables(k, payload.EnvironmentID, db)
+						v = environment.ResolveVariables(v, payload.EnvironmentID, db)
+					}
+					if item.Type == "file" {
+						part, err := mpWriter.CreateFormFile(k, "upload.bin")
+						if err == nil {
+							_, _ = io.WriteString(part, v)
+						}
+					} else {
+						_ = mpWriter.WriteField(k, v)
+					}
+				}
+			}
+			_ = mpWriter.Close()
+			bodyReader = bodyBuf
+			autoContentType = mpWriter.FormDataContentType()
+		} else if bodyContent != "" {
+			bodyReader = strings.NewReader(bodyContent)
+			autoContentType = "multipart/form-data"
+		}
 	}
 
 	httpReq, err := http.NewRequest(strings.ToUpper(payload.Method), finalURL, bodyReader)
@@ -134,9 +207,9 @@ func ExecuteRequest(c *gin.Context) {
 		}
 	}
 
-	// Default Content-Type if JSON body and not explicitly set
-	if payload.BodyType == "json" && httpReq.Header.Get("Content-Type") == "" {
-		httpReq.Header.Set("Content-Type", "application/json")
+	// Default Content-Type if not explicitly overridden by user
+	if autoContentType != "" && httpReq.Header.Get("Content-Type") == "" {
+		httpReq.Header.Set("Content-Type", autoContentType)
 	}
 
 	// 5. Handle Authentication

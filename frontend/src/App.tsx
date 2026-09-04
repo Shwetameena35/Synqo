@@ -608,6 +608,7 @@ export function App() {
                   onSend={handleSendRequest}
                   onSave={handleSaveRequest}
                   isLoading={isLoading}
+                  response={response}
                   onOpenSdkModal={() => navigate('/sdk')}
                   collections={collections}
                   onDraftChange={handleUpdateRequestDraft}
