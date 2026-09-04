@@ -375,7 +375,7 @@ func CreateRequest(c *gin.Context) {
 		return
 	}
 
-	if req.ID == "" {
+	if req.ID == "" || strings.HasPrefix(req.ID, "req_temp_") {
 		req.ID = "req_" + uuid.New().String()[:8]
 	}
 	if req.Headers == "" {
@@ -446,6 +446,9 @@ func UpdateRequest(c *gin.Context) {
 	req.AuthType = updated.AuthType
 	req.AuthConfig = updated.AuthConfig
 	req.Tests = updated.Tests
+	if updated.CollectionID != "" {
+		req.CollectionID = updated.CollectionID
+	}
 	req.FolderID = updated.FolderID
 	req.UpdatedAt = time.Now()
 

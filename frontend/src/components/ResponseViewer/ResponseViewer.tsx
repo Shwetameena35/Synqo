@@ -43,11 +43,23 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoad
   };
 
   const formatBody = (raw: string) => {
+    if (!raw) return '';
     try {
-      const parsed = JSON.parse(raw);
+      let unescaped = raw;
+      if (unescaped.includes('\\n') && !unescaped.includes('\n')) {
+        unescaped = unescaped.replace(/\\n/g, '\n').replace(/\\t/g, '  ').replace(/\\"/g, '"');
+      }
+      const parsed = JSON.parse(unescaped);
+      if (typeof parsed === 'string') {
+        try {
+          return JSON.stringify(JSON.parse(parsed), null, 2);
+        } catch {
+          return parsed;
+        }
+      }
       return JSON.stringify(parsed, null, 2);
     } catch {
-      return raw;
+      return raw.replace(/\\n/g, '\n');
     }
   };
 

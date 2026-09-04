@@ -28,6 +28,7 @@ interface SidebarProps {
   onDeleteRequest: (id: string) => void;
   onCreateCollection: () => void;
   onDeleteCollection?: (id: string) => void;
+  onCreateRequestInCollection?: (collectionId: string) => void;
   mocks: MockEndpoint[];
   onSelectMock: (mock: MockEndpoint) => void;
   history: TestHistory[];
@@ -44,6 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteRequest,
   onCreateCollection,
   onDeleteCollection,
+  onCreateRequestInCollection,
   mocks,
   onSelectMock,
   history,
@@ -350,10 +352,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           )}
                           <span className="truncate">{col.name}</span>
                         </div>
-                        <div className="flex items-center space-x-1.5 shrink-0">
-                          <span className="text-[10px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded">
+                        <div className="flex items-center space-x-1 shrink-0">
+                          <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 rounded font-mono">
                             {col.requests?.length || 0}
                           </span>
+                          {onCreateRequestInCollection && (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!isOpen) toggleCollection(col.id);
+                                onCreateRequestInCollection(col.id);
+                              }}
+                              title={`Add new request to "${col.name}"`}
+                              className="opacity-0 group-hover/col:opacity-100 p-1 hover:text-[#FF6C37] text-neutral-400 hover:bg-[#FF6C37]/15 rounded transition-all cursor-pointer"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </div>
+                          )}
                           {onDeleteCollection && (
                             <div
                               onClick={(e) => {
@@ -363,7 +378,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 }
                               }}
                               title={`Delete collection "${col.name}"`}
-                              className="opacity-0 group-hover/col:opacity-100 p-1 hover:text-rose-400 text-slate-500 hover:bg-rose-500/10 rounded transition-all cursor-pointer"
+                              className="opacity-0 group-hover/col:opacity-100 p-1 hover:text-rose-400 text-neutral-400 hover:bg-rose-500/10 rounded transition-all cursor-pointer"
                             >
                               <Trash2 className="h-3 w-3" />
                             </div>
@@ -372,7 +387,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {isOpen && (
-                        <div className="pl-4 pr-1 py-1 space-y-0.5 border-l border-slate-800/80 ml-3.5">
+                        <div className="pl-4 pr-1 py-1 space-y-0.5 border-l border-neutral-800 ml-3.5">
+                          {filteredRequests.length === 0 && (
+                            <button
+                              onClick={() => onCreateRequestInCollection && onCreateRequestInCollection(col.id)}
+                              className="w-full text-left px-2 py-1.5 text-[11px] text-[#FF6C37] hover:underline flex items-center space-x-1.5 opacity-80 hover:opacity-100 cursor-pointer font-medium"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>Add request to {col.name}</span>
+                            </button>
+                          )}
                           {filteredRequests.map((req) => {
                             const isSelected = selectedRequestId === req.id;
                             return (
