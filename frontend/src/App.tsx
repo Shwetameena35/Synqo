@@ -322,44 +322,89 @@ export function App() {
   const handleSaveRequest = async (reqData: Partial<RequestItem>) => {
     if (!currentWorkspace) return;
 
-    if (reqData.id && reqData.id.startsWith('req_')) {
+    if (reqData.id && reqData.id.startsWith('req_') && !reqData.id.startsWith('req_temp_')) {
       const updated = await api.updateRequest(reqData.id, reqData);
       setSelectedRequest(updated);
     } else {
-      const targetColId = collections[0]?.id;
+      const targetColId = reqData.collectionId || selectedRequest?.collectionId || collections[0]?.id;
       if (!targetColId) return;
+      const { id, ...createPayload } = reqData;
       const created = await api.createRequest({
-        ...reqData,
+        ...createPayload,
         workspaceId: currentWorkspace.id,
         collectionId: targetColId,
       });
       setSelectedRequest(created);
     }
-    loadWorkspaceData(currentWorkspace.id);
+    await loadWorkspaceData(currentWorkspace.id);
   };
 
   // Create new blank request
-  const handleNewRequest = () => {
+  const handleNewRequest = (targetCollectionId?: string) => {
     if (!currentWorkspace || collections.length === 0) return;
+    const colId = targetCollectionId || selectedRequest?.collectionId || collections[0].id;
+    const targetCol = collections.find((c) => c.id === colId);
     const newReq: RequestItem = {
       id: `req_temp_${Date.now()}`,
       workspaceId: currentWorkspace.id,
-      collectionId: collections[0].id,
-      name: 'New Untitled Request',
+      collectionId: colId,
+      name: targetCol ? `New ${targetCol.name} Request` : 'New Untitled Request',
       method: 'GET',
-      url: '{{baseUrl}}/users',
+      url: '',
       headers: '[]',
       params: '[]',
       bodyType: 'none',
       bodyContent: '',
       authType: 'none',
       authConfig: '{}',
-      tests: '[{"type": "status_code", "operator": "equals", "value": "200"}]',
+      tests: '[]',
       orderIndex: 99,
     };
     setSelectedRequest(newReq);
     setResponse(null);
     navigate('/collections');
+  };
+
+  // Real-time draft sync for active request (name, method, collection)
+  const handleUpdateRequestDraft = (updates: Partial<RequestItem>) => {
+    if (!selectedRequest) return;
+
+    setSelectedRequest((prev) => (prev ? { ...prev, ...updates } : prev));
+
+    setCollections((prevCols) =>
+      prevCols.map((col) => {
+        // If collection changed, move request between collections in sidebar
+        if (
+          updates.collectionId &&
+          updates.collectionId !== col.id &&
+          col.requests?.some((r) => r.id === selectedRequest.id)
+        ) {
+          return {
+            ...col,
+            requests: col.requests.filter((r) => r.id !== selectedRequest.id),
+          };
+        }
+        if (
+          updates.collectionId &&
+          updates.collectionId === col.id &&
+          !col.requests?.some((r) => r.id === selectedRequest.id)
+        ) {
+          const reqItem = { ...selectedRequest, ...updates };
+          return {
+            ...col,
+            requests: [...(col.requests || []), reqItem],
+          };
+        }
+
+        // Update name or method in-place in sidebar
+        return {
+          ...col,
+          requests: (col.requests || []).map((r) =>
+            r.id === selectedRequest.id ? { ...r, ...updates } : r
+          ),
+        };
+      })
+    );
   };
 
   // Delete request
@@ -502,8 +547,9 @@ export function App() {
             navigate('/collections');
           }}
           onDeleteRequest={handleDeleteRequest}
-          onCreateCollection={handleCreateCollection}
+          onCreateCollection={() => setShowCreateColModal(true)}
           onDeleteCollection={handleDeleteCollection}
+          onCreateRequestInCollection={handleNewRequest}
           mocks={mocks}
           onSelectMock={() => {
             navigate('/mocks');
@@ -563,6 +609,8 @@ export function App() {
                   onSave={handleSaveRequest}
                   isLoading={isLoading}
                   onOpenSdkModal={() => navigate('/sdk')}
+                  collections={collections}
+                  onDraftChange={handleUpdateRequestDraft}
                 />
               </div>
 

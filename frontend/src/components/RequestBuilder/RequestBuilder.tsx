@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Send,
   Save,
@@ -12,6 +12,8 @@ import {
   Shield,
   Sliders,
   CheckCircle2,
+  AlertCircle,
+  Folder,
 } from 'lucide-react';
 import { RequestItem, HeaderParamItem, AssertionRule } from '../../types';
 import { CodeSnippetModal } from './CodeSnippetModal';
@@ -19,9 +21,11 @@ import { CodeSnippetModal } from './CodeSnippetModal';
 interface RequestBuilderProps {
   request: RequestItem | null;
   onSend: (data: any) => void;
-  onSave: (req: Partial<RequestItem>) => void;
+  onSave: (req: Partial<RequestItem>) => Promise<void> | void;
   isLoading: boolean;
   onOpenSdkModal: () => void;
+  collections?: any[];
+  onDraftChange?: (updates: Partial<RequestItem>) => void;
 }
 
 type TabType = 'params' | 'headers' | 'body' | 'auth' | 'tests';
@@ -32,10 +36,13 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   onSave,
   isLoading,
   onOpenSdkModal,
+  collections,
+  onDraftChange,
 }) => {
   const [method, setMethod] = useState('GET');
   const [url, setUrl] = useState('');
   const [name, setName] = useState('Untitled Request');
+  const [selectedColId, setSelectedColId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TabType>('params');
   const [showSnippetModal, setShowSnippetModal] = useState(false);
 
@@ -58,12 +65,21 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   // Tests / Assertions
   const [tests, setTests] = useState<AssertionRule[]>([]);
 
+  // Save Feedback State
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // Prettify Status State
+  const [prettifyStatus, setPrettifyStatus] = useState<'idle' | 'success' | 'repaired' | 'error'>('idle');
+  const [prettifyErrorMsg, setPrettifyErrorMsg] = useState('');
+
   // Load request state on selection
   useEffect(() => {
     if (request) {
       setMethod(request.method || 'GET');
       setUrl(request.url || '');
       setName(request.name || 'Untitled Request');
+      setSelectedColId(request.collectionId || (collections && collections.length > 0 ? collections[0].id : ''));
 
       try {
         const parsedParams = JSON.parse(request.params || '[]');
@@ -80,7 +96,17 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       }
 
       setBodyType(request.bodyType || 'none');
-      setBodyContent(request.bodyContent || '');
+      let rawBody = request.bodyContent || '';
+      if (rawBody.includes('\\n')) {
+        rawBody = rawBody.replace(/\\n/g, '\n').replace(/\\t/g, '  ').replace(/\\"/g, '"');
+      }
+      try {
+        const parsed = JSON.parse(rawBody);
+        rawBody = JSON.stringify(parsed, null, 2);
+      } catch {
+        // keep raw
+      }
+      setBodyContent(rawBody);
 
       setAuthType(request.authType || 'none');
       try {
@@ -131,7 +157,11 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    setSaveStatus('saving');
+
     const authConfig: any = {};
     if (authType === 'bearer') authConfig.token = authToken;
     if (authType === 'basic') {
@@ -143,28 +173,149 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       authConfig.value = apiKeyValue;
     }
 
-    onSave({
-      id: request?.id,
-      name,
-      method,
-      url,
-      headers: JSON.stringify(headers),
-      params: JSON.stringify(params),
-      bodyType,
-      bodyContent,
-      authType,
-      authConfig: JSON.stringify(authConfig),
-      tests: JSON.stringify(tests),
-    });
+    try {
+      await onSave({
+        id: request?.id,
+        collectionId: selectedColId || request?.collectionId,
+        name,
+        method,
+        url,
+        headers: JSON.stringify(headers),
+        params: JSON.stringify(params),
+        bodyType,
+        bodyContent,
+        authType,
+        authConfig: JSON.stringify(authConfig),
+        tests: JSON.stringify(tests),
+      });
+      setSaveStatus('saved');
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2500);
+    } catch (err) {
+      console.error('Save error:', err);
+      setSaveStatus('error');
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const formatJSONBody = () => {
-    try {
-      const parsed = JSON.parse(bodyContent);
-      setBodyContent(JSON.stringify(parsed, null, 2));
-    } catch {
-      // ignore parse error
+  // Keyboard shortcut Ctrl+S / Cmd+S to Save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [name, method, url, headers, params, bodyType, bodyContent, authType, authToken, basicUser, basicPass, apiKeyName, apiKeyValue, tests, request, isSaving]);
+
+  const getJsonErrorDetails = (raw: string, errMsg: string) => {
+    if (errMsg.includes('line') && errMsg.includes('column')) {
+      return errMsg;
     }
+    const posMatch = errMsg.match(/at position (\d+)/i);
+    if (posMatch) {
+      const pos = parseInt(posMatch[1], 10);
+      const before = raw.slice(0, pos);
+      const lines = before.split('\n');
+      const lineNum = lines.length;
+      const colNum = lines[lines.length - 1].length + 1;
+      return `${errMsg} (at line ${lineNum}, column ${colNum})`;
+    }
+    return errMsg;
+  };
+
+  const tryRepairJSON = (raw: string): string | null => {
+    let s = raw.trim();
+    if (s.includes('\\n')) {
+      s = s.replace(/\\n/g, '\n').replace(/\\t/g, '  ').replace(/\\"/g, '"');
+    }
+
+    try {
+      JSON.parse(s);
+      return s;
+    } catch {
+      // Continue to smart repairs
+    }
+
+    // Remove single-line comments // and multi-line comments /* */
+    s = s.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Replace single quotes with double quotes around keys and values
+    s = s.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, '"$1"');
+
+    // Wrap unquoted object keys in double quotes: { key: "val" } -> { "key": "val" }
+    s = s.replace(/([{,]\s*)([a-zA-Z0-9_$-]+)\s*:/g, '$1"$2":');
+
+    // Remove trailing commas before } or ]
+    s = s.replace(/,\s*([\]}])/g, '$1');
+
+    try {
+      JSON.parse(s);
+      return s;
+    } catch {
+      return null;
+    }
+  };
+
+  // Real-time JSON validation
+  const jsonError = useMemo(() => {
+    if (bodyType !== 'json' || !bodyContent.trim()) return null;
+    try {
+      let text = bodyContent;
+      if (text.includes('\\n')) {
+        text = text.replace(/\\n/g, '\n').replace(/\\t/g, '  ').replace(/\\"/g, '"');
+      }
+      JSON.parse(text);
+      return null;
+    } catch (err: any) {
+      return getJsonErrorDetails(bodyContent, err.message || 'Invalid JSON syntax');
+    }
+  }, [bodyType, bodyContent]);
+
+  const formatJSONBody = () => {
+    if (!bodyContent.trim()) return;
+
+    // First try smart repair & parse
+    const repaired = tryRepairJSON(bodyContent);
+    if (repaired) {
+      try {
+        const parsed = JSON.parse(repaired);
+        const pretty = JSON.stringify(parsed, null, 2);
+        setBodyContent(pretty);
+        const isRepaired = repaired !== bodyContent.trim();
+        setPrettifyStatus(isRepaired ? 'repaired' : 'success');
+        setPrettifyErrorMsg('');
+        setTimeout(() => setPrettifyStatus('idle'), 2500);
+        return;
+      } catch {
+        // continue to error reporting
+      }
+    }
+
+    // If parsing / repair fails completely, extract exact error
+    let rawError = 'Invalid JSON syntax';
+    try {
+      let unescaped = bodyContent;
+      if (unescaped.includes('\\n')) {
+        unescaped = unescaped.replace(/\\n/g, '\n').replace(/\\t/g, '  ').replace(/\\"/g, '"');
+      }
+      JSON.parse(unescaped);
+    } catch (err: any) {
+      rawError = getJsonErrorDetails(bodyContent, err.message || 'Invalid JSON syntax');
+    }
+
+    setPrettifyStatus('error');
+    setPrettifyErrorMsg(rawError);
+    setTimeout(() => {
+      setPrettifyStatus('idle');
+    }, 3500);
   };
 
   return (
@@ -174,10 +325,37 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
         <input
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            const newName = e.target.value;
+            setName(newName);
+            onDraftChange?.({ name: newName });
+          }}
           placeholder="Request Name"
           className="bg-transparent text-sm font-semibold text-neutral-100 focus:outline-none focus:border-b border-[#FF6C37] flex-1 min-w-[80px] max-w-xs truncate"
         />
+
+        {/* Collection Selector Dropdown */}
+        {collections && collections.length > 0 && (
+          <div className="flex items-center space-x-1.5 shrink-0 bg-[#262626] px-2 py-1 rounded border border-[#383838] text-xs">
+            <Folder className="h-3.5 w-3.5 text-[#FF6C37] shrink-0" />
+            <select
+              value={selectedColId}
+              onChange={(e) => {
+                const newColId = e.target.value;
+                setSelectedColId(newColId);
+                onDraftChange?.({ collectionId: newColId });
+              }}
+              className="bg-transparent text-neutral-300 focus:outline-none text-[11px] font-medium cursor-pointer max-w-[120px] sm:max-w-[160px] truncate"
+              title="Collection this request belongs to"
+            >
+              {collections.map((col) => (
+                <option key={col.id} value={col.id} className="bg-[#1E1E1E] text-neutral-200">
+                  {col.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           <button
             onClick={() => setShowSnippetModal(true)}
@@ -188,13 +366,42 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             <span className="hidden sm:inline">Generate Code</span>
             <span className="sm:hidden">Code</span>
           </button>
-          <button
-            onClick={handleSave}
-            className="flex items-center space-x-1 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
-          >
-            <Save className="h-3.5 w-3.5 text-[#FF6C37]" />
-            <span>Save</span>
-          </button>
+
+          {/* Save Button with Dynamic Visual Feedback */}
+          {saveStatus === 'saving' ? (
+            <button
+              disabled
+              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1 rounded bg-[#262626] border border-[#FF6C37]/50 text-xs text-[#FF6C37] cursor-wait shrink-0 transition-all font-game"
+            >
+              <div className="h-3.5 w-3.5 border-2 border-[#FF6C37] border-t-transparent rounded-full animate-spin shrink-0" />
+              <span className="font-bold tracking-wider uppercase text-[11px]">Saving...</span>
+            </button>
+          ) : saveStatus === 'saved' ? (
+            <button
+              disabled
+              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1 rounded bg-emerald-500/20 border border-emerald-500/50 text-xs text-emerald-400 shrink-0 transition-all font-game"
+            >
+              <Check className="h-3.5 w-3.5 text-emerald-400 stroke-[3] shrink-0" />
+              <span className="font-bold tracking-wider uppercase text-[11px]">Saved!</span>
+            </button>
+          ) : saveStatus === 'error' ? (
+            <button
+              onClick={handleSave}
+              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1 rounded bg-rose-500/20 border border-rose-500/50 text-xs text-rose-400 shrink-0 transition-all font-game cursor-pointer"
+            >
+              <AlertCircle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+              <span className="font-bold tracking-wider uppercase text-[11px]">Failed</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleSave}
+              className="flex items-center space-x-1.5 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-all cursor-pointer shrink-0 active:scale-95 font-game"
+              title="Save Request Configuration (Ctrl+S)"
+            >
+              <Save className="h-3.5 w-3.5 text-[#FF6C37] shrink-0" />
+              <span className="font-bold tracking-wider uppercase text-[11px]">Save</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -204,7 +411,11 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
           {/* Method Select */}
           <select
             value={method}
-            onChange={(e) => setMethod(e.target.value)}
+            onChange={(e) => {
+              const newMethod = e.target.value;
+              setMethod(newMethod);
+              onDraftChange?.({ method: newMethod });
+            }}
             className="font-game px-2 sm:px-3 py-2 rounded-lg bg-[#141414] border border-[#333333] text-xs font-black text-[#FF6C37] focus:outline-none focus:border-[#FF6C37] uppercase tracking-wider shadow-inner shrink-0"
           >
             <option value="GET">GET</option>
@@ -299,7 +510,13 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
           }`}
         >
           <span>Body</span>
-          {bodyType !== 'none' && <span className="h-1.5 w-1.5 rounded-full bg-[#FF6C37]" />}
+          {bodyType !== 'none' && (
+            bodyType === 'json' && jsonError ? (
+              <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse shadow-sm shadow-rose-500/50" title="Invalid JSON syntax in body" />
+            ) : (
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF6C37]" />
+            )
+          )}
         </button>
 
         <button
@@ -506,7 +723,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
         {/* BODY TAB */}
         {activeTab === 'body' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center space-x-3 text-xs">
                 <label className="flex items-center space-x-1.5 cursor-pointer">
                   <input
@@ -524,9 +741,9 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                     name="bodyType"
                     checked={bodyType === 'json'}
                     onChange={() => setBodyType('json')}
-                    className="text-cyan-500"
+                    className="text-[#FF6C37]"
                   />
-                  <span className="text-slate-300">JSON</span>
+                  <span className="text-neutral-300">JSON</span>
                 </label>
                 <label className="flex items-center space-x-1.5 cursor-pointer">
                   <input
@@ -541,13 +758,42 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
               </div>
 
               {bodyType === 'json' && (
-                <button
-                  onClick={formatJSONBody}
-                  className="flex items-center space-x-1 px-2.5 py-1 rounded bg-[#262626] border border-[#383838] hover:border-[#444] text-xs text-[#FF6C37] cursor-pointer"
-                >
-                  <Sparkles className="h-3 w-3" />
-                  <span>Prettify JSON</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={formatJSONBody}
+                    disabled={!bodyContent.trim()}
+                    className={`flex items-center space-x-1 px-2.5 py-1 rounded border text-xs transition-all cursor-pointer ${
+                      prettifyStatus === 'success' || prettifyStatus === 'repaired'
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                        : prettifyStatus === 'error'
+                        ? 'bg-rose-500/20 border-rose-500/50 text-rose-300'
+                        : 'bg-[#262626] border-[#383838] hover:border-[#444] text-[#FF6C37] disabled:opacity-40 disabled:cursor-not-allowed'
+                    }`}
+                    title="Prettify and auto-fix JSON syntax"
+                  >
+                    {prettifyStatus === 'success' ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-400" />
+                        <span>Prettified!</span>
+                      </>
+                    ) : prettifyStatus === 'repaired' ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-400" />
+                        <span>Fixed & Prettified!</span>
+                      </>
+                    ) : prettifyStatus === 'error' ? (
+                      <>
+                        <AlertCircle className="h-3 w-3 text-rose-400" />
+                        <span>Syntax Error</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3 w-3" />
+                        <span>Prettify JSON</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -555,9 +801,26 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
               <textarea
                 value={bodyContent}
                 onChange={(e) => setBodyContent(e.target.value)}
-                placeholder='{\n  "key": "value"\n}'
+                placeholder={
+                  bodyType === 'json'
+                    ? '{\n  "key": "value"\n}'
+                    : 'Enter raw request body content...'
+                }
                 rows={12}
-                className="w-full p-3 rounded-lg bg-[#141414] border border-[#2E2E2E] text-xs font-mono text-neutral-200 focus:outline-none focus:border-[#FF6C37] shadow-inner"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                title={bodyType === 'json' && jsonError ? `JSON Error: ${jsonError}` : undefined}
+                style={{
+                  textDecoration: bodyType === 'json' && jsonError ? 'underline wavy #ef4444' : 'none',
+                  textUnderlineOffset: '4px',
+                  textDecorationThickness: '1.5px',
+                }}
+                className={`w-full p-3 rounded-lg bg-[#141414] border text-xs font-mono text-neutral-200 placeholder-neutral-500 focus:outline-none shadow-inner leading-relaxed transition-colors ${
+                  bodyType === 'json' && jsonError
+                    ? 'border-rose-500/50 focus:border-rose-500'
+                    : 'border-[#2E2E2E] focus:border-[#FF6C37]'
+                }`}
               />
             ) : (
               <div className="py-12 text-center text-xs text-slate-500">
