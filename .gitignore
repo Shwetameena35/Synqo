@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Production Builds
+dist/
+frontend/dist/
+build/
+
+# Compiled Go Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/api-hub.exe
+api-hub.exe
+
+# Local Databases & Logs
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.log
+backend/api_playground.db
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & OS Metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

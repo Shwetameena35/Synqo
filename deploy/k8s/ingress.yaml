@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apihub-frontend
+  namespace: api-playground-hub
+  labels:
+    app: apihub-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: apihub-frontend
+  template:
+    metadata:
+      labels:
+        app: apihub-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: apihub-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apihub-frontend-service
+  namespace: api-playground-hub
+spec:
+  selector:
+    app: apihub-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apihub-ingress
+  namespace: api-playground-hub
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: apihub-backend-service
+spec:
+  rules:
+    - host: apihub.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: apihub-backend-service
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: apihub-frontend-service
+                port:
+                  number: 80

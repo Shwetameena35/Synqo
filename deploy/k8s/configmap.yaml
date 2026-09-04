@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: api-playground-hub
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: apihub-config
+  namespace: api-playground-hub
+data:
+  PORT: "8080"
+  GIN_MODE: "release"
+  SQLITE_PATH: "/data/api_playground.db"

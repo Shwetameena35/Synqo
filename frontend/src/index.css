@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Rajdhani', 'Chakra Petch', system-ui, -apple-system, sans-serif;
+    --font-game: 'Orbitron', 'Chakra Petch', sans-serif;
+    --font-ui: 'Rajdhani', 'Chakra Petch', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --postman-orange: #FF6C37;
+    --postman-orange-hover: #FF5216;
+    --postman-orange-active: #E5450B;
+    --postman-bg-dark: #141414;
+    --postman-bg-panel: #1e1e1e;
+    --postman-border: #2e2e2e;
+  }
+
+  body {
+    background-color: #141414;
+    color: #f1f1f1;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    letter-spacing: 0.035em;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  button {
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Futuristic Gaming Typography */
+.font-game {
+  font-family: 'Orbitron', 'Chakra Petch', sans-serif;
+  letter-spacing: 0.07em;
+}
+
+.font-hud {
+  font-family: 'Orbitron', 'Chakra Petch', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Postman Charcoal & Orange Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #181818;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF6C37;
+}
+
+/* Postman Iconic HTTP Method Badges */
+.badge-get {
+  background-color: rgba(12, 187, 82, 0.15);
+  color: #0cbb52;
+  border: 1px solid rgba(12, 187, 82, 0.35);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.badge-post {
+  background-color: rgba(255, 108, 55, 0.18);
+  color: #FF6C37;
+  border: 1px solid rgba(255, 108, 55, 0.45);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.badge-put {
+  background-color: rgba(9, 123, 237, 0.15);
+  color: #097bed;
+  border: 1px solid rgba(9, 123, 237, 0.35);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.badge-patch {
+  background-color: rgba(144, 19, 254, 0.15);
+  color: #9013fe;
+  border: 1px solid rgba(144, 19, 254, 0.35);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.badge-delete {
+  background-color: rgba(235, 32, 19, 0.15);
+  color: #eb2013;
+  border: 1px solid rgba(235, 32, 19, 0.35);
+  font-family: 'Orbitron', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+/* Postman Dark Glassmorphism */
+.glass-panel {
+  background: rgba(24, 24, 24, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Pulsing Online Dots */
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 0.3; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.pulse-active {
+  animation: pulse-ring 2s infinite ease-in-out;
+}

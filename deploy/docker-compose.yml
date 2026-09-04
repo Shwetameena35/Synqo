@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Main Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: apihub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: apihub
+      POSTGRES_PASSWORD: apihub_secret_password
+      POSTGRES_DB: apihub_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apihub -d apihub_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Cache & PubSub
+  redis:
+    image: redis:7-alpine
+    container_name: apihub-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Meilisearch Fast API Search Engine
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    container_name: apihub-search
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: masterKey_apihub_search_2026
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+
+  # 4. Go Backend API Server
+  backend:
+    build:
+      context: ../
+      dockerfile: deploy/Dockerfile.backend
+    container_name: apihub-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      GIN_MODE: release
+      DATABASE_URL: postgres://apihub:apihub_secret_password@postgres:5432/apihub_db?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: api-playground-hub-production-jwt-key
+    ports:
+      - "8080:8080"
+
+  # 5. React Frontend Web Application
+  frontend:
+    build:
+      context: ../
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: apihub-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+  redis_data:
+  meili_data:

@@ -1,0 +1,31 @@
+# Multi-stage Dockerfile for API Playground Hub Go Backend
+FROM golang:1.26-alpine AS builder
+
+WORKDIR /app
+
+# Install git and build essentials
+RUN apk add --no-cache git ca-certificates tzdata
+
+COPY backend/go.mod backend/go.sum ./
+RUN go mod download
+
+COPY backend/ ./
+
+# Build optimized binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/api-hub ./cmd/server
+
+# Final Minimal Distroless / Alpine Image
+FROM alpine:3.20
+
+WORKDIR /app
+
+RUN apk --no-cache add ca-certificates tzdata
+
+COPY --from=builder /app/api-hub /app/api-hub
+
+EXPOSE 8080
+
+ENV PORT=8080
+ENV GIN_MODE=release
+
+ENTRYPOINT ["/app/api-hub"]
