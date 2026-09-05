@@ -3,6 +3,8 @@ package auth
 import (
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"api-playground-hub/pkg/database"
@@ -13,13 +15,46 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var jwtSecret = []byte(getEnv("JWT_SECRET", "api-playground-hub-secret-key-2026"))
-
 func getEnv(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
 	}
 	return fallback
+}
+
+// GetJWTSecret dynamically fetches the JWT signing secret from .env
+func GetJWTSecret() []byte {
+	return []byte(getEnv("JWT_SECRET", "api-playground-hub-secret-key-2026"))
+}
+
+// GetTokenExpiration resolves the token validity duration from .env.
+// Supports JWT_EXPIRATION_HOURS (e.g. "24") or JWT_EXPIRES_IN (e.g. "24h", "7d", "168h", "30m").
+func GetTokenExpiration() time.Duration {
+	// 1. Check JWT_EXPIRES_IN (e.g., "24h", "7d", "168h", "30m")
+	if expStr := os.Getenv("JWT_EXPIRES_IN"); expStr != "" {
+		if d, err := time.ParseDuration(expStr); err == nil {
+			return d
+		}
+		if strings.HasSuffix(expStr, "d") {
+			daysStr := strings.TrimSuffix(expStr, "d")
+			if days, err := strconv.Atoi(daysStr); err == nil {
+				return time.Duration(days) * 24 * time.Hour
+			}
+		}
+		if hours, err := strconv.Atoi(expStr); err == nil {
+			return time.Duration(hours) * time.Hour
+		}
+	}
+
+	// 2. Check JWT_EXPIRATION_HOURS (e.g., "24")
+	if hoursStr := os.Getenv("JWT_EXPIRATION_HOURS"); hoursStr != "" {
+		if hours, err := strconv.Atoi(hoursStr); err == nil {
+			return time.Duration(hours) * time.Hour
+		}
+	}
+
+	// Default fallback to 24 hours
+	return 24 * time.Hour
 }
 
 // Claims defines standard JWT claims with user details
@@ -46,9 +81,10 @@ type AuthResponse struct {
 	User  database.User `json:"user"`
 }
 
-// GenerateToken creates a signed JWT for a user
+// GenerateToken creates a signed JWT for a user using duration from .env
 func GenerateToken(user database.User) (string, error) {
-	expirationTime := time.Now().Add(7 * 24 * time.Hour)
+	expirationDuration := GetTokenExpiration()
+	expirationTime := time.Now().Add(expirationDuration)
 	claims := &Claims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -60,7 +96,7 @@ func GenerateToken(user database.User) (string, error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(GetJWTSecret())
 }
 
 // Register creates a new user and returns a token
