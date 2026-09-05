@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Send,
   Save,
@@ -25,7 +25,68 @@ import { RequestItem, HeaderParamItem, FormDataItem, AssertionRule, RequestComme
 import { api } from '../../services/api';
 import { CodeSnippetModal } from './CodeSnippetModal';
 import { CurlImportModal } from './CurlImportModal';
+import { VariableInspectorModal } from './VariableInspectorModal';
 import { parseCurl, ParsedCurl } from '../../utils/curlParser';
+
+function getVariableAtPosition(text: string, position: number): string | null {
+  const regex = /\{\{([^}]+)\}\}/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const start = match.index;
+    const end = match.index + match[0].length;
+    if (position >= start && position <= end) {
+      return match[1].trim();
+    }
+  }
+  return null;
+}
+
+function extractAllVariables(text: string): string[] {
+  const regex = /\{\{([^}]+)\}\}/g;
+  const vars: string[] = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const name = match[1].trim();
+    if (!vars.includes(name)) {
+      vars.push(name);
+    }
+  }
+  return vars;
+}
+
+function parseUrlTokens(url: string) {
+  if (!url) return [];
+  const regex = /(\{\{[^}]+\}\})/g;
+  const parts: { text: string; isVar: boolean; varName: string | null }[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(url)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({
+        text: url.slice(lastIndex, match.index),
+        isVar: false,
+        varName: null,
+      });
+    }
+    parts.push({
+      text: match[0],
+      isVar: true,
+      varName: match[1].slice(2, -2).trim(),
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < url.length) {
+    parts.push({
+      text: url.slice(lastIndex),
+      isVar: false,
+      varName: null,
+    });
+  }
+
+  return parts;
+}
 
 interface RequestBuilderProps {
   request: RequestItem | null;
@@ -37,6 +98,8 @@ interface RequestBuilderProps {
   onOpenSdkModal: () => void;
   collections?: any[];
   onDraftChange?: (updates: Partial<RequestItem>) => void;
+  onOpenEnvModal?: () => void;
+  onEnvironmentUpdated?: (updated: Environment) => void;
 }
 
 type TabType = 'params' | 'headers' | 'body' | 'auth' | 'tests' | 'comments';
@@ -51,6 +114,8 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   onOpenSdkModal,
   collections,
   onDraftChange,
+  onOpenEnvModal,
+  onEnvironmentUpdated,
 }) => {
   const [method, setMethod] = useState('GET');
   const [url, setUrl] = useState('');
@@ -60,6 +125,53 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   const [showSnippetModal, setShowSnippetModal] = useState(false);
   const [showCurlModal, setShowCurlModal] = useState(false);
   const [curlImportToast, setCurlImportToast] = useState<string | null>(null);
+  const [inspectingVariable, setInspectingVariable] = useState<string | null>(null);
+
+  const urlBackdropRef = useRef<HTMLDivElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+
+  const activeEnvVars: VariableItem[] = useMemo(() => {
+    if (!currentEnvironment?.variables) return [];
+    try {
+      const parsed = JSON.parse(currentEnvironment.variables);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [currentEnvironment]);
+
+  const handleInspectVariable = (varName: string) => {
+    setInspectingVariable(varName);
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        const val = target.value;
+        const pos = target.selectionStart ?? 0;
+        const varAtPos = getVariableAtPosition(val, pos);
+        const allVars = extractAllVariables(val);
+        const targetVar = varAtPos || (allVars.length > 0 ? allVars[0] : null);
+        if (targetVar) {
+          e.preventDefault();
+          e.stopPropagation();
+          setInspectingVariable(targetVar);
+          return;
+        }
+      }
+      const text = target.textContent || '';
+      if (text.includes('{{')) {
+        const allVars = extractAllVariables(text);
+        if (allVars.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          setInspectingVariable(allVars[0]);
+          return;
+        }
+      }
+    }
+  };
 
   const handleImportCurl = (parsed: ParsedCurl) => {
     setMethod(parsed.method);
@@ -516,7 +628,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#181818] border-r border-[#2B2B2B]">
+    <div
+      className="flex flex-col h-full bg-[#181818] border-r border-[#2B2B2B]"
+      onClickCapture={handleContainerClick}
+    >
       {/* Request Title & Actions */}
       <div className="px-3 sm:px-4 py-2.5 border-b border-[#2B2B2B] flex items-center justify-between bg-[#1E1E1E] gap-2 min-w-0">
         <input
@@ -655,12 +770,86 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             <option value="DELETE">DELETE</option>
           </select>
 
-          {/* URL Input */}
-          <div className="relative flex-1 min-w-0">
+          {/* URL Input with Inline Variable Highlighting */}
+          <div className="relative flex-1 min-w-0 rounded-lg bg-[#141414] border border-[#333333] focus-within:border-[#FF6C37] transition-colors shadow-inner flex items-center overflow-hidden">
+            {/* Syntax Highlight Backdrop Layer */}
+            <div
+              ref={urlBackdropRef}
+              className="w-full px-2.5 sm:px-3.5 py-2 text-xs font-mono whitespace-pre overflow-hidden flex items-center select-none pointer-events-none absolute inset-0 leading-normal"
+              aria-hidden="true"
+            >
+              {url ? (
+                parseUrlTokens(url).map((token, idx) => {
+                  if (token.isVar) {
+                    const isDefined = activeEnvVars.some(
+                      (v) => v.key.toLowerCase() === token.varName?.toLowerCase()
+                    );
+                    return (
+                      <span
+                        key={idx}
+                        className={
+                          isDefined
+                            ? 'text-[#FF6C37] bg-[#FF6C37]/20 font-bold rounded-xs'
+                            : 'text-rose-400 bg-rose-500/20 font-bold underline decoration-rose-500/70 rounded-xs'
+                        }
+                      >
+                        {token.text}
+                      </span>
+                    );
+                  }
+                  return (
+                    <span key={idx} className="text-neutral-100">
+                      {token.text}
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="text-neutral-500 truncate">
+                  https://api.example.com/v1/users or &#123;&#123;baseUrl&#125;&#125;/users (Enter to send)
+                </span>
+              )}
+            </div>
+
+            {/* Interactive Real Input Layer */}
             <input
+              ref={urlInputRef}
               type="text"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => {
+                const newUrl = e.target.value;
+                setUrl(newUrl);
+                onDraftChange?.({ url: newUrl });
+              }}
+              onScroll={(e) => {
+                if (urlBackdropRef.current) {
+                  urlBackdropRef.current.scrollLeft = (e.target as HTMLInputElement).scrollLeft;
+                }
+              }}
+              onKeyUp={() => {
+                if (urlBackdropRef.current && urlInputRef.current) {
+                  urlBackdropRef.current.scrollLeft = urlInputRef.current.scrollLeft;
+                }
+              }}
+              onClick={(e) => {
+                const input = e.currentTarget;
+                const pos = input.selectionStart ?? 0;
+                const varAtPos = getVariableAtPosition(input.value, pos);
+                if (varAtPos) {
+                  handleInspectVariable(varAtPos);
+                }
+              }}
+              onMouseMove={(e) => {
+                const input = e.currentTarget;
+                const pos = input.selectionStart ?? 0;
+                const varAtPos = getVariableAtPosition(input.value, pos);
+                if (varAtPos) {
+                  input.style.cursor = 'pointer';
+                  input.title = `Dynamic Variable {{${varAtPos}}} • Click to inspect value`;
+                } else {
+                  input.style.cursor = 'text';
+                  input.title = 'Enter endpoint URL. Press Enter in this bar to send request';
+                }
+              }}
               onPaste={(e) => {
                 const pastedText = e.clipboardData.getData('text');
                 if (pastedText && pastedText.trim().toLowerCase().startsWith('curl ')) {
@@ -673,8 +862,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                   }
                 }
               }}
-              placeholder="https://api.example.com/v1/users or {{baseUrl}}/users (Enter or Ctrl+Enter to send)"
-              title="Enter endpoint URL. Press Enter in this bar or Ctrl+Enter anywhere to send request"
+              placeholder=""
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -683,13 +871,8 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                   }
                 }
               }}
-              className="w-full px-2.5 sm:px-3.5 py-2 rounded-lg bg-[#141414] border border-[#333333] text-xs font-mono text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-[#FF6C37] shadow-inner truncate"
+              className="w-full px-2.5 sm:px-3.5 py-2 bg-transparent border-0 text-xs font-mono text-transparent caret-[#FF6C37] selection:bg-[#FF6C37]/30 selection:text-white focus:outline-none leading-normal relative z-10"
             />
-            {url.includes('{{') && (
-              <span className="font-game hidden md:inline absolute right-3 top-2 text-[9px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-bold uppercase tracking-wider">
-                Env Var Active
-              </span>
-            )}
           </div>
 
           {/* Send Button with Keyboard Shortcut Tooltip */}
@@ -745,13 +928,14 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
               }
             });
             if (resolved === url) return null;
+            const detectedVars = extractAllVariables(url);
             return (
-              <div className="mt-2 px-3 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-300 font-mono">
+              <div className="mt-2 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-300 font-mono">
                 <div className="flex items-center space-x-1.5 truncate">
                   <span className="font-bold text-emerald-400">⚡ Resolves in {currentEnvironment.name}:</span>
                   <span className="truncate">{resolved}</span>
                 </div>
-                <span className="text-[10px] text-emerald-400/80 shrink-0 ml-2 font-game uppercase tracking-wider font-semibold">
+                <span className="text-[10px] text-emerald-400/80 font-game uppercase tracking-wider font-semibold shrink-0 ml-2">
                   {currentEnvironment.name} Active
                 </span>
               </div>
@@ -1878,6 +2062,16 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
         isOpen={showCurlModal}
         onClose={() => setShowCurlModal(false)}
         onImport={handleImportCurl}
+      />
+
+      {/* Dynamic Variable Inspector Modal */}
+      <VariableInspectorModal
+        isOpen={!!inspectingVariable}
+        onClose={() => setInspectingVariable(null)}
+        variableName={inspectingVariable || ''}
+        currentEnvironment={currentEnvironment}
+        onEnvironmentUpdated={onEnvironmentUpdated}
+        onOpenEnvModal={onOpenEnvModal}
       />
     </div>
   );

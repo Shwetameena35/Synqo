@@ -561,7 +561,7 @@ export function App() {
             navigate('/collections');
           }}
           onDeleteRequest={handleDeleteRequest}
-          onCreateCollection={() => setShowCreateColModal(true)}
+          onCreateCollection={handleCreateCollection}
           onDeleteCollection={handleDeleteCollection}
           onCreateRequestInCollection={handleNewRequest}
           mocks={mocks}
@@ -627,6 +627,13 @@ export function App() {
                   onOpenSdkModal={() => navigate('/sdk')}
                   collections={collections}
                   onDraftChange={handleUpdateRequestDraft}
+                  onOpenEnvModal={() => setShowEnvModal(true)}
+                  onEnvironmentUpdated={(updatedEnv) => {
+                    setCurrentEnvironment(updatedEnv);
+                    if (currentWorkspace) {
+                      api.getEnvironments(currentWorkspace.id).then(setEnvironments);
+                    }
+                  }}
                 />
               </div>
 
