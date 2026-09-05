@@ -178,6 +178,15 @@ export function App() {
     localStorage.setItem('active_workspace_id', ws.id);
   };
 
+  const handleSelectEnvironment = (env: Environment | null) => {
+    setCurrentEnvironment(env);
+    if (currentWorkspace && env) {
+      localStorage.setItem(`active_env_${currentWorkspace.id}`, env.id);
+    } else if (currentWorkspace && !env) {
+      localStorage.removeItem(`active_env_${currentWorkspace.id}`);
+    }
+  };
+
   // 1. Load workspaces for authenticated user or demo mode
   useEffect(() => {
     if (currentUser || isDemoMode) {
@@ -216,8 +225,13 @@ export function App() {
     // Environments
     api.getEnvironments(wsId).then((envs) => {
       setEnvironments(envs);
-      const def = envs.find((e) => e.isDefault) || envs[0] || null;
+      const savedEnvId = localStorage.getItem(`active_env_${wsId}`);
+      const savedEnv = savedEnvId ? envs.find((e) => e.id === savedEnvId) : null;
+      const def = savedEnv || envs.find((e) => e.isDefault) || envs[0] || null;
       setCurrentEnvironment(def);
+      if (def) {
+        localStorage.setItem(`active_env_${wsId}`, def.id);
+      }
     });
 
     // Mocks
@@ -519,7 +533,7 @@ export function App() {
         }}
         environments={environments}
         currentEnvironment={currentEnvironment}
-        onSelectEnvironment={setCurrentEnvironment}
+        onSelectEnvironment={handleSelectEnvironment}
         onOpenEnvModal={() => setShowEnvModal(true)}
         onOpenImportModal={() => setShowImportModal(true)}
         onNewRequest={handleNewRequest}
@@ -609,6 +623,7 @@ export function App() {
                   onSave={handleSaveRequest}
                   isLoading={isLoading}
                   response={response}
+                  currentEnvironment={currentEnvironment}
                   onOpenSdkModal={() => navigate('/sdk')}
                   collections={collections}
                   onDraftChange={handleUpdateRequestDraft}
@@ -673,10 +688,18 @@ export function App() {
         workspaceId={currentWorkspace?.id || ''}
         environments={environments}
         currentEnvironment={currentEnvironment}
-        onRefreshEnvironments={() =>
-          currentWorkspace && api.getEnvironments(currentWorkspace.id).then(setEnvironments)
-        }
-        onSelectEnvironment={setCurrentEnvironment}
+        onRefreshEnvironments={() => {
+          if (!currentWorkspace) return;
+          api.getEnvironments(currentWorkspace.id).then((envs) => {
+            setEnvironments(envs);
+            const savedEnvId = localStorage.getItem(`active_env_${currentWorkspace.id}`);
+            const matched = envs.find((e) => e.id === (currentEnvironment?.id || savedEnvId));
+            if (matched) {
+              setCurrentEnvironment(matched);
+            }
+          });
+        }}
+        onSelectEnvironment={handleSelectEnvironment}
       />
 
       {/* OpenAPI Import Modal */}

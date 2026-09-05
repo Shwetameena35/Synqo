@@ -155,6 +155,7 @@ func main() {
 			// Team members under workspace
 			wsGroup.GET("/:workspaceId/members", workspace.ListMembers)
 			wsGroup.POST("/:workspaceId/members", workspace.AddMember)
+			wsGroup.PUT("/:workspaceId/members/:memberId/role", workspace.UpdateMemberRole)
 			wsGroup.DELETE("/:workspaceId/members/:memberId", workspace.RemoveMember)
 			wsGroup.POST("/:workspaceId/invites", workspace.CreateInvite)
 			wsGroup.GET("/:workspaceId/invites", workspace.ListInvites)

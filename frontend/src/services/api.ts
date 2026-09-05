@@ -72,6 +72,11 @@ export const api = {
     fetchJSON<{ message: string }>(`${API_BASE}/workspaces/${workspaceId}/members/${memberId}`, {
       method: 'DELETE',
     }),
+  updateMemberRole: (workspaceId: string, memberId: string, role: string) =>
+    fetchJSON<WorkspaceMember>(`${API_BASE}/workspaces/${workspaceId}/members/${memberId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
 
   // Collections & Requests
   getCollections: (workspaceId: string) =>

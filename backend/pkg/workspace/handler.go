@@ -193,6 +193,46 @@ func RemoveMember(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Member removed successfully"})
 }
 
+// UpdateMemberRole updates a member's permission role (editor <-> viewer)
+func UpdateMemberRole(c *gin.Context) {
+	workspaceID := c.Param("workspaceId")
+	memberID := c.Param("memberId")
+
+	var req struct {
+		Role string `json:"role" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role is required"})
+		return
+	}
+
+	role := strings.ToLower(strings.TrimSpace(req.Role))
+	if role != "editor" && role != "viewer" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role must be 'editor' or 'viewer'"})
+		return
+	}
+
+	db := database.GetDB()
+	var member database.WorkspaceMember
+	if err := db.Where("id = ? AND workspace_id = ?", memberID, workspaceID).First(&member).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in this workspace"})
+		return
+	}
+
+	if member.Role == "owner" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot change the workspace owner's role"})
+		return
+	}
+
+	member.Role = role
+	if err := db.Save(&member).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update member role"})
+		return
+	}
+
+	c.JSON(http.StatusOK, member)
+}
+
 // CreateWorkspace creates a new workspace
 func CreateWorkspace(c *gin.Context) {
 	var req struct {

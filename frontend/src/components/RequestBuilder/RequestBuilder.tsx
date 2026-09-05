@@ -18,10 +18,14 @@ import {
   CornerDownRight,
   CheckCircle,
   RefreshCw,
+  Terminal,
+  X,
 } from 'lucide-react';
-import { RequestItem, HeaderParamItem, FormDataItem, AssertionRule, RequestComment, ExecuteResponsePayload } from '../../types';
+import { RequestItem, HeaderParamItem, FormDataItem, AssertionRule, RequestComment, ExecuteResponsePayload, Environment, VariableItem } from '../../types';
 import { api } from '../../services/api';
 import { CodeSnippetModal } from './CodeSnippetModal';
+import { CurlImportModal } from './CurlImportModal';
+import { parseCurl, ParsedCurl } from '../../utils/curlParser';
 
 interface RequestBuilderProps {
   request: RequestItem | null;
@@ -29,6 +33,7 @@ interface RequestBuilderProps {
   onSave: (req: Partial<RequestItem>) => Promise<void> | void;
   isLoading: boolean;
   response?: ExecuteResponsePayload | null;
+  currentEnvironment?: Environment | null;
   onOpenSdkModal: () => void;
   collections?: any[];
   onDraftChange?: (updates: Partial<RequestItem>) => void;
@@ -42,6 +47,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   onSave,
   isLoading,
   response,
+  currentEnvironment,
   onOpenSdkModal,
   collections,
   onDraftChange,
@@ -52,6 +58,63 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   const [selectedColId, setSelectedColId] = useState<string>('');
   const [activeTab, setActiveTab] = useState<TabType>('params');
   const [showSnippetModal, setShowSnippetModal] = useState(false);
+  const [showCurlModal, setShowCurlModal] = useState(false);
+  const [curlImportToast, setCurlImportToast] = useState<string | null>(null);
+
+  const handleImportCurl = (parsed: ParsedCurl) => {
+    setMethod(parsed.method);
+    setUrl(parsed.url);
+    setHeaders(parsed.headers);
+    setParams(parsed.params);
+    setBodyType(parsed.bodyType);
+    setBodyContent(parsed.bodyContent);
+    setFormDataList(parsed.formDataList);
+    setUrlEncodedList(parsed.urlEncodedList);
+    setAuthType(parsed.authType);
+    setAuthToken(parsed.authToken);
+    setBasicUser(parsed.basicUser);
+    setBasicPass(parsed.basicPass);
+
+    if (parsed.bodyType !== 'none') {
+      setActiveTab('body');
+    } else if (parsed.params.length > 0) {
+      setActiveTab('params');
+    } else if (parsed.headers.length > 0) {
+      setActiveTab('headers');
+    } else if (parsed.authType !== 'none') {
+      setActiveTab('auth');
+    }
+
+    let effBody = parsed.bodyContent;
+    if (parsed.bodyType === 'form-data') {
+      effBody = JSON.stringify(parsed.formDataList);
+    } else if (parsed.bodyType === 'x-www-form-urlencoded') {
+      effBody = JSON.stringify(parsed.urlEncodedList);
+    }
+
+    const authCfg: any = {};
+    if (parsed.authType === 'bearer') authCfg.token = parsed.authToken;
+    if (parsed.authType === 'basic') {
+      authCfg.username = parsed.basicUser;
+      authCfg.password = parsed.basicPass;
+    }
+
+    onDraftChange?.({
+      method: parsed.method,
+      url: parsed.url,
+      headers: JSON.stringify(parsed.headers),
+      params: JSON.stringify(parsed.params),
+      bodyType: parsed.bodyType,
+      bodyContent: effBody,
+      authType: parsed.authType,
+      authConfig: JSON.stringify(authCfg),
+    });
+
+    setCurlImportToast(`Imported cURL: ${parsed.method} with ${parsed.headers.length} header(s)`);
+    setTimeout(() => {
+      setCurlImportToast(null);
+    }, 4000);
+  };
 
   // Params & Headers
   const [params, setParams] = useState<HeaderParamItem[]>([]);
@@ -327,9 +390,19 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
     }
   };
 
-  // Keyboard shortcut Ctrl+S / Cmd+S to Save
+  // Keyboard shortcuts: Ctrl+S to Save & Ctrl+Enter to Send
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Enter or Cmd+Enter -> Send API Request
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!isLoading) {
+          handleSend();
+        }
+        return;
+      }
+
+      // Ctrl+S or Cmd+S -> Save Request Configuration
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         handleSave();
@@ -337,7 +410,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [name, method, url, headers, params, bodyType, bodyContent, formDataList, urlEncodedList, authType, authToken, basicUser, basicPass, apiKeyName, apiKeyValue, tests, request, isSaving]);
+  }, [name, method, url, headers, params, bodyType, bodyContent, formDataList, urlEncodedList, authType, authToken, basicUser, basicPass, apiKeyName, apiKeyValue, tests, request, isSaving, isLoading]);
 
   const getJsonErrorDetails = (raw: string, errMsg: string) => {
     if (errMsg.includes('line') && errMsg.includes('column')) {
@@ -505,6 +578,16 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
           </button>
 
           <button
+            onClick={() => setShowCurlModal(true)}
+            title="Import raw cURL command into active request"
+            className="flex items-center space-x-1 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+          >
+            <Terminal className="h-3.5 w-3.5 text-[#FF6C37]" />
+            <span className="hidden sm:inline">Import cURL</span>
+            <span className="sm:hidden">cURL</span>
+          </button>
+
+          <button
             onClick={() => setShowSnippetModal(true)}
             title="Generate code snippet in cURL, JavaScript, Python, Go, or Java"
             className="flex items-center space-x-1 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
@@ -578,10 +661,26 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://api.example.com/v1/users or {{baseUrl}}/users"
+              onPaste={(e) => {
+                const pastedText = e.clipboardData.getData('text');
+                if (pastedText && pastedText.trim().toLowerCase().startsWith('curl ')) {
+                  e.preventDefault();
+                  try {
+                    const parsed = parseCurl(pastedText);
+                    handleImportCurl(parsed);
+                  } catch (err) {
+                    console.error('Failed to parse pasted cURL command:', err);
+                  }
+                }
+              }}
+              placeholder="https://api.example.com/v1/users or {{baseUrl}}/users (Enter or Ctrl+Enter to send)"
+              title="Enter endpoint URL. Press Enter in this bar or Ctrl+Enter anywhere to send request"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                  handleSend();
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (!isLoading) {
+                    handleSend();
+                  }
                 }
               }}
               className="w-full px-2.5 sm:px-3.5 py-2 rounded-lg bg-[#141414] border border-[#333333] text-xs font-mono text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-[#FF6C37] shadow-inner truncate"
@@ -593,25 +692,115 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             )}
           </div>
 
-          {/* Send Button */}
-          <button
-            onClick={handleSend}
-            disabled={isLoading}
-            className="font-game flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-6 py-2 rounded-lg bg-[#FF6C37] hover:bg-[#FF5216] active:bg-[#E5450B] text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-orange-600/30 disabled:opacity-50 transition-all cursor-pointer active:scale-95 shrink-0"
-          >
-            {isLoading ? (
-              <>
-                <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span className="hidden sm:inline">Sending...</span>
-              </>
-            ) : (
-              <>
-                <Send className="h-3.5 w-3.5" />
-                <span>Send</span>
-              </>
-            )}
-          </button>
+          {/* Send Button with Keyboard Shortcut Tooltip */}
+          <div className="relative group shrink-0">
+            <button
+              onClick={handleSend}
+              disabled={isLoading}
+              title="Send Request (Press Enter in URL bar, or Ctrl+Enter anywhere)"
+              className="font-game flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-6 py-2 rounded-lg bg-[#FF6C37] hover:bg-[#FF5216] active:bg-[#E5450B] text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-orange-600/30 disabled:opacity-50 transition-all cursor-pointer active:scale-95 shrink-0"
+            >
+              {isLoading ? (
+                <>
+                  <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="hidden sm:inline">Sending...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="h-3.5 w-3.5" />
+                  <span>Send</span>
+                </>
+              )}
+            </button>
+
+            {/* Rich Hover Shortcut Tooltip */}
+            <div className="absolute top-full right-0 mt-2 z-50 hidden group-hover:flex flex-col items-end pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95">
+              <div className="bg-[#181818] border border-[#383838] shadow-2xl rounded-lg p-2.5 text-[11px] text-neutral-200 whitespace-nowrap flex flex-col gap-1.5 backdrop-blur-md">
+                <div className="flex items-center gap-1.5 font-semibold text-white">
+                  <Send className="h-3 w-3 text-[#FF6C37]" />
+                  <span>Send Request Shortcuts</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-[10px] text-neutral-400">
+                  <span>URL Bar:</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-[#262626] border border-[#444] text-neutral-100 font-mono font-bold shadow-xs">↵ Enter</kbd>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-[10px] text-neutral-400">
+                  <span>Anywhere:</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-[#262626] border border-[#444] text-[#FF6C37] font-mono font-bold shadow-xs">Ctrl + Enter</kbd>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Live Environment Variable Resolution Preview */}
+        {(() => {
+          if (!currentEnvironment || !url || !url.includes('{{')) return null;
+          try {
+            const vars: VariableItem[] = JSON.parse(currentEnvironment.variables || '[]');
+            let resolved = url;
+            vars.forEach((v) => {
+              if (v.enabled && v.key) {
+                resolved = resolved.replaceAll(`{{${v.key}}}`, v.value);
+              }
+            });
+            if (resolved === url) return null;
+            return (
+              <div className="mt-2 px-3 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-300 font-mono">
+                <div className="flex items-center space-x-1.5 truncate">
+                  <span className="font-bold text-emerald-400">⚡ Resolves in {currentEnvironment.name}:</span>
+                  <span className="truncate">{resolved}</span>
+                </div>
+                <span className="text-[10px] text-emerald-400/80 shrink-0 ml-2 font-game uppercase tracking-wider font-semibold">
+                  {currentEnvironment.name} Active
+                </span>
+              </div>
+            );
+          } catch {
+            return null;
+          }
+        })()}
+
+        {/* Live cURL Import Success Banner */}
+        {curlImportToast && (
+          <div className="mt-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-400 animate-in fade-in duration-200 font-medium">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>{curlImportToast}</span>
+            </div>
+            <button
+              onClick={() => setCurlImportToast(null)}
+              className="text-neutral-400 hover:text-white cursor-pointer ml-2"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Smart helper banner when localhost is hardcoded on Prod */}
+        {currentEnvironment &&
+          (url.includes('localhost') || url.includes('127.0.0.1')) &&
+          currentEnvironment.name.toLowerCase().includes('prod') && (
+            <div className="mt-2 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-amber-300">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                <span>
+                  You are in <strong>{currentEnvironment.name}</strong>, but URL is hardcoded to <code>localhost</code>. Use <code>&#123;&#123;baseUrl&#125;&#125;</code> to target your Prod server.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const replaced = url.replace(/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/, '{{baseUrl}}');
+                  setUrl(replaced);
+                  onDraftChange?.({ url: replaced });
+                }}
+                className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-[11px] font-bold shrink-0 transition-colors cursor-pointer"
+              >
+                Switch to &#123;&#123;baseUrl&#125;&#125;
+              </button>
+            </div>
+          )}
       </div>
 
       {/* Tabs Header */}
@@ -1682,6 +1871,13 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
         body={getEffectiveBodyContent()}
         bodyType={bodyType}
         onOpenSdkStudio={onOpenSdkModal}
+      />
+
+      {/* Instant cURL Command Import Modal */}
+      <CurlImportModal
+        isOpen={showCurlModal}
+        onClose={() => setShowCurlModal(false)}
+        onImport={handleImportCurl}
       />
     </div>
   );
