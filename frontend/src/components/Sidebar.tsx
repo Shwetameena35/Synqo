@@ -14,6 +14,7 @@ import {
   Trash2,
   Play,
   Zap,
+  X,
 } from 'lucide-react';
 import { CollectionWithTree, RequestItem, MockEndpoint, TestHistory } from '../types';
 
@@ -34,6 +35,8 @@ interface SidebarProps {
   history: TestHistory[];
   onSelectHistoryItem: (item: TestHistory) => void;
   onClearHistory: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -51,6 +54,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   history,
   onSelectHistoryItem,
   onClearHistory,
+  isMobileOpen = false,
+  onCloseMobile,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
@@ -190,55 +195,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const hasDrawer = activeTab === 'collections' || activeTab === 'mocks' || activeTab === 'history';
 
-  return (
-    <aside className="h-[calc(100vh-3.5rem)] flex border-r border-[#2B2B2B] select-none">
-      {/* Primary Navigation Rail */}
-      <div
-        className={`${isExpanded ? 'w-56' : 'w-14'
-          } bg-[#181818] border-r border-[#2B2B2B] flex flex-col justify-between transition-all duration-200 z-20 shrink-0`}
-      >
-        <div className="py-3 px-2 space-y-1">
-          {/* Header */}
-          {isExpanded ? (
-            <div className="px-2 pb-2 mb-2 border-b border-slate-800/80 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Studio Menu
-              </span>
-              <button
-                onClick={() => setIsExpanded(false)}
-                title="Collapse sidebar"
-                className="p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-900 transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex justify-center pb-2 mb-2 border-b border-slate-800/80">
-              <button
-                onClick={() => setIsExpanded(true)}
-                title="Expand sidebar (show names)"
-                className="p-1.5 rounded-md text-slate-400 hover:text-cyan-400 hover:bg-slate-900 transition-colors cursor-pointer"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
+  const handleTabClick = (tabId: SidebarTab) => {
+    onSelectTab(tabId);
+    // On mobile screens, if user chooses a tab with no subdrawer, automatically dismiss the drawer
+    if (tabId === 'docs' || tabId === 'sdk' || tabId === 'monitoring') {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        onCloseMobile?.();
+      }
+    }
+  };
 
-          {/* Navigation Items */}
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => onSelectTab(item.id)}
-                title={!isExpanded ? item.label : undefined}
-                className={`w-full flex items-center rounded-xl transition-all cursor-pointer ${isExpanded ? 'px-2.5 py-2 justify-between' : 'p-2.5 justify-center'
-                  } ${isActive
-                    ? `${item.activeClass} border shadow-sm`
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/70 border border-transparent'
-                  }`}
-              >
+  return (
+    <>
+      {/* Mobile Drawer Backdrop */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 lg:hidden animate-in fade-in duration-200"
+          onClick={onCloseMobile}
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 lg:static lg:z-auto h-full lg:h-[calc(100vh-3.5rem)] flex border-r border-[#2B2B2B] select-none bg-[#141414] transition-transform duration-300 ease-in-out ${
+          isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        {/* Primary Navigation Rail */}
+        <div
+          className={`${isExpanded ? 'w-52 sm:w-56' : 'w-14'
+            } bg-[#181818] border-r border-[#2B2B2B] flex flex-col justify-between transition-all duration-200 z-20 shrink-0`}
+        >
+          <div className="py-3 px-2 space-y-1">
+            {/* Header */}
+            {isExpanded ? (
+              <div className="px-2 pb-2 mb-2 border-b border-slate-800/80 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Studio Menu
+                </span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={onCloseMobile}
+                    className="lg:hidden p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                    title="Close sidebar"
+                  >
+                    <X className="h-3.5 w-3.5 text-[#FF6C37]" />
+                  </button>
+                  <button
+                    onClick={() => setIsExpanded(false)}
+                    title="Collapse sidebar"
+                    className="hidden lg:block p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-900 transition-colors cursor-pointer"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80 px-1">
+                <button
+                  onClick={() => setIsExpanded(true)}
+                  title="Expand sidebar (show names)"
+                  className="p-1 rounded-md text-slate-400 hover:text-cyan-400 hover:bg-slate-900 transition-colors cursor-pointer"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={onCloseMobile}
+                  className="lg:hidden p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Close sidebar"
+                >
+                  <X className="h-3.5 w-3.5 text-[#FF6C37]" />
+                </button>
+              </div>
+            )}
+
+            {/* Navigation Items */}
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleTabClick(item.id)}
+                  title={!isExpanded ? item.label : undefined}
+                  className={`w-full flex items-center rounded-xl transition-all cursor-pointer ${isExpanded ? 'px-2.5 py-2 justify-between' : 'p-2.5 justify-center'
+                    } ${isActive
+                      ? `${item.activeClass} border shadow-sm`
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/70 border border-transparent'
+                    }`}
+                >
                 <div className="flex items-center space-x-2.5 truncate">
                   <div
                     className={`p-1 rounded-lg shrink-0 ${isActive ? 'bg-slate-900 shadow-sm ' + item.color : 'text-slate-400'
@@ -402,7 +446,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             return (
                               <div
                                 key={req.id}
-                                onClick={() => onSelectRequest(req)}
+                                onClick={() => {
+                                  onSelectRequest(req);
+                                  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                                    onCloseMobile?.();
+                                  }
+                                }}
                                 className={`group flex items-center justify-between px-2 py-1.5 rounded-md text-xs cursor-pointer transition-all ${isSelected
                                     ? 'bg-[#FF6C37]/15 text-[#FF8555] font-semibold border border-[#FF6C37]/40'
                                     : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800/60'
@@ -451,7 +500,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {mocks.map((mock) => (
                   <div
                     key={mock.id}
-                    onClick={() => onSelectMock(mock)}
+                    onClick={() => {
+                      onSelectMock(mock);
+                      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                        onCloseMobile?.();
+                      }
+                    }}
                     className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 hover:border-purple-500/40 cursor-pointer transition-colors space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
@@ -496,7 +550,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   history.map((item) => (
                     <div
                       key={item.id}
-                      onClick={() => onSelectHistoryItem(item)}
+                      onClick={() => {
+                        onSelectHistoryItem(item);
+                        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                          onCloseMobile?.();
+                        }
+                      }}
                       className="p-2 rounded-md bg-slate-950/50 hover:bg-slate-800/50 border border-slate-800/60 cursor-pointer text-xs space-y-1 transition-colors"
                     >
                       <div className="flex items-center justify-between">
@@ -543,5 +602,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
     </aside>
+    </>
   );
 };

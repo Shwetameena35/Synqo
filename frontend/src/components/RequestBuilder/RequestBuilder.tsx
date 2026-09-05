@@ -668,11 +668,11 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             </select>
           </div>
         )}
-        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+        <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
           <button
             onClick={() => setActiveTab('comments')}
             title="Team Comments & Issue Discussion"
-            className={`flex items-center space-x-1.5 px-2 sm:px-2.5 py-1 rounded border text-xs transition-colors cursor-pointer shrink-0 ${
+            className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded border text-xs transition-colors cursor-pointer shrink-0 ${
               activeTab === 'comments'
                 ? 'bg-[#FF6C37]/20 border-[#FF6C37] text-[#FF6C37]'
                 : 'bg-[#262626] hover:bg-[#333333] border-[#383838] text-neutral-300 hover:text-white'
@@ -680,7 +680,6 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
           >
             <MessageSquare className="h-3.5 w-3.5 text-[#FF6C37]" />
             <span className="hidden sm:inline">Comments</span>
-            <span className="sm:hidden">Notes</span>
             {comments.length > 0 && (
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold leading-none ${
                 comments.some((c) => c.status === 'open')
@@ -695,56 +694,56 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
           <button
             onClick={() => setShowCurlModal(true)}
             title="Import raw cURL command into active request"
-            className="flex items-center space-x-1 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+            className="flex items-center space-x-1 px-1.5 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
           >
             <Terminal className="h-3.5 w-3.5 text-[#FF6C37]" />
-            <span className="hidden sm:inline">Import cURL</span>
-            <span className="sm:hidden">cURL</span>
+            <span className="hidden md:inline">Import cURL</span>
+            <span className="md:hidden hidden xs:inline">cURL</span>
           </button>
 
           <button
             onClick={() => setShowSnippetModal(true)}
             title="Generate code snippet in cURL, JavaScript, Python, Go, or Java"
-            className="flex items-center space-x-1 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+            className="flex items-center space-x-1 px-1.5 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
           >
             <FileCode className="h-3.5 w-3.5 text-[#FF6C37]" />
-            <span className="hidden sm:inline">Generate Code</span>
-            <span className="sm:hidden">Code</span>
+            <span className="hidden md:inline">Generate Code</span>
+            <span className="md:hidden hidden xs:inline">Code</span>
           </button>
 
           {/* Save Button with Dynamic Visual Feedback */}
           {saveStatus === 'saving' ? (
             <button
               disabled
-              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1 rounded bg-[#262626] border border-[#FF6C37]/50 text-xs text-[#FF6C37] cursor-wait shrink-0 transition-all font-game"
+              className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1 rounded bg-[#262626] border border-[#FF6C37]/50 text-xs text-[#FF6C37] cursor-wait shrink-0 transition-all font-game"
             >
               <div className="h-3.5 w-3.5 border-2 border-[#FF6C37] border-t-transparent rounded-full animate-spin shrink-0" />
-              <span className="font-bold tracking-wider uppercase text-[11px]">Saving...</span>
+              <span className="font-bold tracking-wider uppercase text-[11px] hidden xs:inline">Saving...</span>
             </button>
           ) : saveStatus === 'saved' ? (
             <button
               disabled
-              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1 rounded bg-emerald-500/20 border border-emerald-500/50 text-xs text-emerald-400 shrink-0 transition-all font-game"
+              className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1 rounded bg-emerald-500/20 border border-emerald-500/50 text-xs text-emerald-400 shrink-0 transition-all font-game"
             >
               <Check className="h-3.5 w-3.5 text-emerald-400 stroke-[3] shrink-0" />
-              <span className="font-bold tracking-wider uppercase text-[11px]">Saved!</span>
+              <span className="font-bold tracking-wider uppercase text-[11px] hidden xs:inline">Saved!</span>
             </button>
           ) : saveStatus === 'error' ? (
             <button
               onClick={handleSave}
-              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1 rounded bg-rose-500/20 border border-rose-500/50 text-xs text-rose-400 shrink-0 transition-all font-game cursor-pointer"
+              className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1 rounded bg-rose-500/20 border border-rose-500/50 text-xs text-rose-400 shrink-0 transition-all font-game cursor-pointer"
             >
               <AlertCircle className="h-3.5 w-3.5 text-rose-400 shrink-0" />
-              <span className="font-bold tracking-wider uppercase text-[11px]">Failed</span>
+              <span className="font-bold tracking-wider uppercase text-[11px] hidden xs:inline">Failed</span>
             </button>
           ) : (
             <button
               onClick={handleSave}
-              className="flex items-center space-x-1.5 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-all cursor-pointer shrink-0 active:scale-95 font-game"
+              className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-all cursor-pointer shrink-0 active:scale-95 font-game"
               title="Save Request Configuration (Ctrl+S)"
             >
               <Save className="h-3.5 w-3.5 text-[#FF6C37] shrink-0" />
-              <span className="font-bold tracking-wider uppercase text-[11px]">Save</span>
+              <span className="font-bold tracking-wider uppercase text-[11px] hidden xs:inline">Save</span>
             </button>
           )}
         </div>
@@ -988,7 +987,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center px-4 border-b border-[#2B2B2B] bg-[#181818] text-xs select-none">
+      <div className="flex items-center px-2 sm:px-4 border-b border-[#2B2B2B] bg-[#181818] text-xs select-none overflow-x-auto whitespace-nowrap">
         <button
           onClick={() => setActiveTab('params')}
           className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${
@@ -1105,8 +1104,9 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
               </button>
             </div>
 
-            <div className="border border-[#2E2E2E] rounded-lg overflow-hidden bg-[#1E1E1E]">
-              <div className="grid grid-cols-12 bg-[#141414] px-3 py-1.5 text-[11px] font-semibold text-neutral-400 border-b border-[#2E2E2E]">
+            <div className="border border-[#2E2E2E] rounded-lg overflow-x-auto bg-[#1E1E1E]">
+              <div className="min-w-[420px]">
+                <div className="grid grid-cols-12 bg-[#141414] px-3 py-1.5 text-[11px] font-semibold text-neutral-400 border-b border-[#2E2E2E]">
                 <div className="col-span-1 text-center">Use</div>
                 <div className="col-span-5">Key</div>
                 <div className="col-span-5">Value</div>
@@ -1172,6 +1172,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                   </div>
                 ))
               )}
+              </div>
             </div>
           </div>
         )}
@@ -1190,8 +1191,9 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
               </button>
             </div>
 
-            <div className="border border-[#2E2E2E] rounded-lg overflow-hidden bg-[#1E1E1E]">
-              <div className="grid grid-cols-12 bg-[#141414] px-3 py-1.5 text-[11px] font-semibold text-neutral-400 border-b border-[#2E2E2E]">
+            <div className="border border-[#2E2E2E] rounded-lg overflow-x-auto bg-[#1E1E1E]">
+              <div className="min-w-[420px]">
+                <div className="grid grid-cols-12 bg-[#141414] px-3 py-1.5 text-[11px] font-semibold text-neutral-400 border-b border-[#2E2E2E]">
                 <div className="col-span-1 text-center">Use</div>
                 <div className="col-span-5">Header Key</div>
                 <div className="col-span-5">Header Value</div>
@@ -1257,6 +1259,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                   </div>
                 ))
               )}
+              </div>
             </div>
           </div>
         )}

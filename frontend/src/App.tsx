@@ -54,6 +54,21 @@ export function App() {
   const [response, setResponse] = useState<ExecuteResponsePayload | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Responsive Layout States
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [mobileActiveView, setMobileActiveView] = useState<'request' | 'response'>('request');
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // URL Routing & Active Tab
   const location = useLocation();
   const navigate = useNavigate();
@@ -312,9 +327,16 @@ export function App() {
         environmentId: currentEnvironment?.id,
       });
       setResponse(res);
+      // Auto-switch to response tab on mobile so user sees result immediately
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        setMobileActiveView('response');
+      }
       // Reload history
       api.getHistory(currentWorkspace.id).then(setHistory);
     } catch (err: any) {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        setMobileActiveView('response');
+      }
       setResponse({
         statusCode: 500,
         statusText: 'Client Error',
@@ -546,10 +568,12 @@ export function App() {
         membersCount={members.length}
         invitations={invitations}
         onAcceptInvite={handleAcceptInvitation}
+        isMobileSidebarOpen={isMobileSidebarOpen}
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
       />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Left Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -606,62 +630,147 @@ export function App() {
               setHistory([]);
             }
           }}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
         {/* Center / Right Content Panels */}
-        <main className="flex-1 flex overflow-hidden">
+        <main className="flex-1 flex overflow-hidden min-w-0">
           {activeTab === 'collections' || activeTab === 'history' ? (
-            <div id="main-split-container" className="flex-1 flex overflow-hidden relative">
-              {/* Left: Request Builder */}
-              <div
-                style={{ width: `${requestPanelWidth}%` }}
-                className="h-full overflow-hidden shrink-0 flex flex-col"
-              >
-                <RequestBuilder
-                  request={selectedRequest}
-                  onSend={handleSendRequest}
-                  onSave={handleSaveRequest}
-                  isLoading={isLoading}
-                  response={response}
-                  currentEnvironment={currentEnvironment}
-                  onOpenSdkModal={() => navigate('/sdk')}
-                  collections={collections}
-                  onDraftChange={handleUpdateRequestDraft}
-                  onOpenEnvModal={() => setShowEnvModal(true)}
-                  onEnvironmentUpdated={(updatedEnv) => {
-                    setCurrentEnvironment(updatedEnv);
-                    if (currentWorkspace) {
-                      api.getEnvironments(currentWorkspace.id).then(setEnvironments);
-                    }
+            <div id="main-split-container" className="flex-1 flex flex-col lg:flex-row overflow-hidden relative min-w-0">
+              {/* Mobile / Tablet Segmented View Switcher (< 1024px) */}
+              {!isDesktop && (
+                <div className="flex items-center justify-between px-3 py-2 bg-[#181818] border-b border-[#2B2B2B] shrink-0">
+                  <div className="flex items-center space-x-1 p-1 rounded-lg bg-[#141414] border border-[#2B2B2B] w-full max-w-xs">
+                    <button
+                      type="button"
+                      onClick={() => setMobileActiveView('request')}
+                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+                        mobileActiveView === 'request'
+                          ? 'bg-[#FF6C37] text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <span>⚡ Request</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMobileActiveView('response')}
+                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+                        mobileActiveView === 'response'
+                          ? 'bg-[#FF6C37] text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <span>📄 Response</span>
+                      {response && (
+                        <span
+                          className={`text-[9px] px-1 py-0.2 rounded font-mono font-bold ${
+                            response.statusCode >= 200 && response.statusCode < 300
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-rose-500/20 text-rose-400'
+                          }`}
+                        >
+                          {response.statusCode}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  {response && (
+                    <div className="text-[11px] font-mono text-neutral-400 flex items-center space-x-2 pl-2">
+                      <span className="text-[#FF6C37] font-semibold">{response.latencyMs}ms</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Left: Request Builder Panel */}
+              {isDesktop ? (
+                <div
+                  style={{ width: `${requestPanelWidth}%` }}
+                  className="h-full overflow-hidden shrink-0 flex flex-col"
+                >
+                  <RequestBuilder
+                    request={selectedRequest}
+                    onSend={handleSendRequest}
+                    onSave={handleSaveRequest}
+                    isLoading={isLoading}
+                    response={response}
+                    currentEnvironment={currentEnvironment}
+                    onOpenSdkModal={() => navigate('/sdk')}
+                    collections={collections}
+                    onDraftChange={handleUpdateRequestDraft}
+                    onOpenEnvModal={() => setShowEnvModal(true)}
+                    onEnvironmentUpdated={(updatedEnv) => {
+                      setCurrentEnvironment(updatedEnv);
+                      if (currentWorkspace) {
+                        api.getEnvironments(currentWorkspace.id).then(setEnvironments);
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                mobileActiveView === 'request' && (
+                  <div className="w-full h-full overflow-hidden flex-1 flex flex-col">
+                    <RequestBuilder
+                      request={selectedRequest}
+                      onSend={handleSendRequest}
+                      onSave={handleSaveRequest}
+                      isLoading={isLoading}
+                      response={response}
+                      currentEnvironment={currentEnvironment}
+                      onOpenSdkModal={() => navigate('/sdk')}
+                      collections={collections}
+                      onDraftChange={handleUpdateRequestDraft}
+                      onOpenEnvModal={() => setShowEnvModal(true)}
+                      onEnvironmentUpdated={(updatedEnv) => {
+                        setCurrentEnvironment(updatedEnv);
+                        if (currentWorkspace) {
+                          api.getEnvironments(currentWorkspace.id).then(setEnvironments);
+                        }
+                      }}
+                    />
+                  </div>
+                )
+              )}
+
+              {/* Adjustable Divider Bar (Desktop Only) */}
+              {isDesktop && (
+                <div
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setIsDraggingSplit(true);
                   }}
-                />
-              </div>
+                  onDoubleClick={() => {
+                    setRequestPanelWidth(50);
+                    localStorage.setItem('layout_request_panel_width', '50');
+                  }}
+                  className={`w-1.5 hover:w-2 hover:bg-[#FF6C37]/80 bg-[#2B2B2B] transition-all cursor-col-resize shrink-0 relative group flex items-center justify-center z-10 select-none ${
+                    isDraggingSplit ? 'bg-[#FF6C37] w-2 shadow-lg shadow-orange-500/40' : ''
+                  }`}
+                  title="Drag to resize panels • Double-click to reset 50/50"
+                >
+                  <div className="h-8 w-0.5 rounded-full bg-neutral-600 group-hover:bg-white" />
+                </div>
+              )}
 
-              {/* Adjustable Divider Bar */}
-              <div
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setIsDraggingSplit(true);
-                }}
-                onDoubleClick={() => {
-                  setRequestPanelWidth(50);
-                  localStorage.setItem('layout_request_panel_width', '50');
-                }}
-                className={`w-1.5 hover:w-2 hover:bg-[#FF6C37]/80 bg-[#2B2B2B] transition-all cursor-col-resize shrink-0 relative group flex items-center justify-center z-10 select-none ${
-                  isDraggingSplit ? 'bg-[#FF6C37] w-2 shadow-lg shadow-orange-500/40' : ''
-                }`}
-                title="Drag to resize panels • Double-click to reset 50/50"
-              >
-                <div className="h-8 w-0.5 rounded-full bg-neutral-600 group-hover:bg-white" />
-              </div>
-
-              {/* Right: Response Viewer */}
-              <div
-                style={{ width: `${100 - requestPanelWidth}%` }}
-                className="h-full overflow-hidden flex-1 flex flex-col"
-              >
-                <ResponseViewer response={response} isLoading={isLoading} />
-              </div>
+              {/* Right: Response Viewer Panel */}
+              {isDesktop ? (
+                <div
+                  style={{ width: `${100 - requestPanelWidth}%` }}
+                  className="h-full overflow-hidden flex-1 flex flex-col"
+                >
+                  <ResponseViewer response={response} isLoading={isLoading} />
+                </div>
+              ) : (
+                mobileActiveView === 'response' && (
+                  <div className="w-full h-full overflow-hidden flex-1 flex flex-col">
+                    <ResponseViewer response={response} isLoading={isLoading} />
+                  </div>
+                )
+              )}
             </div>
           ) : activeTab === 'mocks' ? (
             <MockStudio

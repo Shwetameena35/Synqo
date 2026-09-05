@@ -114,13 +114,13 @@ export const MockStudio: React.FC<MockStudioProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-[#141414] overflow-hidden">
       {/* Top Banner */}
-      <div className="p-4 border-b border-[#2B2B2B] bg-[#1C1C1C] flex items-center justify-between">
+      <div className="p-4 border-b border-[#2B2B2B] bg-[#1C1C1C] flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
         <div>
           <div className="text-sm font-bold text-neutral-100 flex items-center space-x-2">
-            <Server className="h-4 w-4 text-[#FF6C37]" />
-            <span>Mock Server Studio</span>
+            <Radio className="h-4 w-4 text-[#FF6C37]" />
+            <span>Dynamic Mock Server Studio</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FF6C37]/15 text-[#FF6C37] border border-[#FF6C37]/30 font-semibold">
-              Live Mock URL Engine
+              Live WS Engine
             </span>
           </div>
           <p className="text-xs text-neutral-400 mt-0.5">
@@ -138,7 +138,7 @@ export const MockStudio: React.FC<MockStudioProps> = ({
             setFormBody('{\n  "id": 1,\n  "name": "Palak Sharma"\n}');
             setIsModalOpen(true);
           }}
-          className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-[#FF6C37] hover:bg-[#FF5216] active:bg-[#E5450B] text-xs font-bold text-white shadow-lg shadow-orange-600/25 transition-all cursor-pointer"
+          className="flex items-center justify-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-[#FF6C37] hover:bg-[#FF5216] active:bg-[#E5450B] text-xs font-bold text-white shadow-lg shadow-orange-600/25 transition-all cursor-pointer shrink-0"
         >
           <Plus className="h-3.5 w-3.5" />
           <span>New Mock Endpoint</span>
@@ -146,9 +146,9 @@ export const MockStudio: React.FC<MockStudioProps> = ({
       </div>
 
       {/* Main Grid: Endpoints + Live Traffic */}
-      <div className="flex-1 grid grid-cols-12 overflow-hidden">
+      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 overflow-y-auto lg:overflow-hidden">
         {/* Endpoints List */}
-        <div className="col-span-5 border-r border-[#2B2B2B] flex flex-col h-full bg-[#181818]">
+        <div className="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-[#2B2B2B] flex flex-col shrink-0 min-h-[260px] lg:h-full bg-[#181818]">
           <div className="p-3 border-b border-[#2B2B2B] text-xs font-semibold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
             <span>Configured Mocks ({mocks.length})</span>
           </div>
@@ -248,7 +248,7 @@ export const MockStudio: React.FC<MockStudioProps> = ({
         </div>
 
         {/* Live Traffic Stream & Inspection Panel */}
-        <div className="col-span-7 flex flex-col h-full bg-slate-950">
+        <div className="lg:col-span-7 flex flex-col flex-1 min-h-[300px] h-full bg-[#141414]">
           <div className="p-3 border-b border-slate-800/80 bg-slate-900/20 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="h-2 w-2 rounded-full bg-emerald-400 pulse-active" />

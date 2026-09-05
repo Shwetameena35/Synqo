@@ -12,6 +12,9 @@ import {
   Bell,
   Check,
   UserPlus,
+  Menu,
+  X,
+  MoreVertical,
 } from 'lucide-react';
 import { Workspace, Environment } from '../types';
 
@@ -37,6 +40,8 @@ interface NavbarProps {
   membersCount: number;
   invitations?: any[];
   onAcceptInvite?: (inviteCode: string) => void;
+  isMobileSidebarOpen?: boolean;
+  onToggleMobileSidebar?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -59,8 +64,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   membersCount,
   invitations = [],
   onAcceptInvite,
+  isMobileSidebarOpen,
+  onToggleMobileSidebar,
 }) => {
-  const [activeDropdown, setActiveDropdown] = useState<'workspace' | 'environment' | 'notifications' | 'user' | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<'workspace' | 'environment' | 'notifications' | 'user' | 'more' | null>(null);
   const [newWsName, setNewWsName] = useState('');
   const [showNewWsModal, setShowNewWsModal] = useState(false);
 
@@ -86,7 +93,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="h-14 bg-[#181818] border-b border-[#2B2B2B] px-2.5 sm:px-4 flex items-center justify-between select-none z-30 min-w-0 relative">
+    <header className="h-14 bg-[#181818] border-b border-[#2B2B2B] px-2 sm:px-4 flex items-center justify-between select-none z-30 min-w-0 relative">
       {/* Global Transparent Backdrop to dismiss dropdowns on clicking anywhere on screen */}
       {activeDropdown !== null && (
         <div
@@ -94,20 +101,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={closeDropdowns}
         />
       )}
-      {/* Left: Brand & Workspace Switcher */}
-      <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 min-w-0">
-        <div className="flex items-center space-x-2 shrink-0">
+      {/* Left: Mobile Hamburger & Brand & Workspace Switcher */}
+      <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0 min-w-0">
+        {/* Mobile Hamburger Drawer Toggle (visible on < lg screens) */}
+        <button
+          type="button"
+          onClick={onToggleMobileSidebar}
+          className="lg:hidden p-1.5 sm:p-2 rounded-lg bg-[#222] hover:bg-[#2B2B2B] text-neutral-300 hover:text-white border border-[#333] transition-colors cursor-pointer shrink-0"
+          title={isMobileSidebarOpen ? 'Close Menu' : 'Open Menu'}
+          aria-label="Toggle navigation menu"
+        >
+          {isMobileSidebarOpen ? (
+            <X className="h-4 w-4 text-[#FF6C37]" />
+          ) : (
+            <Menu className="h-4 w-4 text-neutral-200" />
+          )}
+        </button>
+
+        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-[#FF6C37] via-[#FF5216] to-[#E5450B] flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
-            <Layers className="h-5 w-5 text-white" />
+            <Layers className="h-4.5 w-4.5 text-white" />
           </div>
           <div>
-            <div className="font-game text-xs sm:text-sm font-black tracking-wider text-white flex items-center space-x-1.5">
+            <div className="font-game text-xs sm:text-sm font-black tracking-wider text-white flex items-center space-x-1">
               <span>SYNQO</span>
-              <span className="font-game text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-[#FF6C37]/15 text-[#FF6C37] border border-[#FF6C37]/30 tracking-widest">
+              <span className="font-game text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-[#FF6C37]/15 text-[#FF6C37] border border-[#FF6C37]/30 tracking-widest hidden sm:inline">
                 PRO
               </span>
             </div>
-            {/* <div className="hidden 2xl:block text-[11px] text-neutral-400 font-semibold tracking-wide">API Development, Mocking & Collaboration</div> */}
           </div>
         </div>
 
@@ -118,13 +139,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => setActiveDropdown(activeDropdown === 'workspace' ? null : 'workspace')}
-            className="flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer shrink-0"
+            className="flex items-center space-x-1 sm:space-x-2 px-1.5 sm:px-2.5 py-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer shrink-0"
           >
             <Users className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-            <span className="max-w-[100px] sm:max-w-[130px] md:max-w-[160px] truncate">
+            <span className="max-w-[70px] xs:max-w-[100px] sm:max-w-[130px] md:max-w-[160px] truncate">
               {currentWorkspace?.name || 'Select Team'}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
           </button>
 
           {activeDropdown === 'workspace' && (
@@ -325,10 +346,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Team Members Button */}
+        {/* Team Members Button (desktop/tablet) */}
         <button
           onClick={onOpenTeamModal}
-          className="flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-medium text-neutral-300 transition-colors cursor-pointer shrink-0"
+          className="hidden md:flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-medium text-neutral-300 transition-colors cursor-pointer shrink-0"
           title="Manage Workspace Team"
         >
           <Users className="h-3.5 w-3.5 text-purple-400" />
@@ -343,7 +364,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={() => setActiveDropdown(activeDropdown === 'notifications' ? null : 'notifications')}
-            className="relative p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="relative p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
             title="Workspace Invitations & Alerts"
           >
             <Bell className="h-3.5 w-3.5" />
@@ -410,7 +431,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={onOpenImportModal}
-          className="flex items-center space-x-1 px-2.5 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-medium text-neutral-200 transition-colors cursor-pointer shrink-0"
+          className="hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-medium text-neutral-200 transition-colors cursor-pointer shrink-0"
           title="Import OpenAPI / Swagger Spec"
         >
           <FileCode2 className="h-3.5 w-3.5 text-[#FF6C37]" />
@@ -421,11 +442,61 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           type="button"
           onClick={onNewRequest}
-          className="font-game flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-[#FF6C37] hover:bg-[#FF5216] text-xs font-black uppercase tracking-wider text-white shadow-md shadow-orange-600/30 transition-all cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
+          className="font-game flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 rounded-md bg-[#FF6C37] hover:bg-[#FF5216] text-xs font-black uppercase tracking-wider text-white shadow-md shadow-orange-600/30 transition-all cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
+          title="Create New Request"
         >
           <Plus className="h-3.5 w-3.5 shrink-0" />
-          <span>New Request</span>
+          <span className="hidden sm:inline">New Request</span>
         </button>
+
+        {/* Mobile More Options Dropdown (visible on < md screens) */}
+        <div className="relative md:hidden shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveDropdown(activeDropdown === 'more' ? null : 'more')}
+            className="p-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+            title="More Options"
+          >
+            <MoreVertical className="h-3.5 w-3.5" />
+          </button>
+
+          {activeDropdown === 'more' && (
+            <div className="absolute right-0 mt-2 w-52 rounded-xl bg-[#1C1C1C] border border-[#333] shadow-2xl p-2 z-50 space-y-1 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  closeDropdowns();
+                  onOpenImportModal();
+                }}
+                className="w-full text-left px-2.5 py-2 rounded-lg text-neutral-200 hover:bg-neutral-800 flex items-center space-x-2 transition-colors cursor-pointer"
+              >
+                <FileCode2 className="h-3.5 w-3.5 text-[#FF6C37]" />
+                <span>Import OpenAPI</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  closeDropdowns();
+                  onOpenTeamModal();
+                }}
+                className="w-full text-left px-2.5 py-2 rounded-lg text-neutral-200 hover:bg-neutral-800 flex items-center space-x-2 transition-colors cursor-pointer"
+              >
+                <Users className="h-3.5 w-3.5 text-purple-400" />
+                <span>Team Members ({membersCount})</span>
+              </button>
+
+              <div className="px-2.5 py-1.5 border-t border-neutral-800 flex items-center space-x-2 text-[11px] text-neutral-400">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    isConnected ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-amber-400'
+                  }`}
+                />
+                <span>{isConnected ? 'Sync Active' : 'Connecting...'}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* User Account / Auth Dropdown */}
         <div className="relative shrink-0">
