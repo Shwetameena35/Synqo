@@ -11,6 +11,7 @@ import {
   ParsedOpenAPISpec,
   User,
   WorkspaceMember,
+  RequestComment,
 } from '../types';
 
 const API_BASE = '/api/v1';
@@ -70,6 +71,11 @@ export const api = {
   removeMember: (workspaceId: string, memberId: string) =>
     fetchJSON<{ message: string }>(`${API_BASE}/workspaces/${workspaceId}/members/${memberId}`, {
       method: 'DELETE',
+    }),
+  updateMemberRole: (workspaceId: string, memberId: string, role: string) =>
+    fetchJSON<WorkspaceMember>(`${API_BASE}/workspaces/${workspaceId}/members/${memberId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
     }),
 
   // Collections & Requests
@@ -202,4 +208,22 @@ export const api = {
 
   getUserInvitations: () =>
     fetchJSON<any[]>(`${API_BASE}/user/invitations`),
+
+  // Request Comments & Collaboration
+  getComments: (requestId: string) =>
+    fetchJSON<RequestComment[]>(`${API_BASE}/requests/${requestId}/comments`),
+  addComment: (requestId: string, data: { content: string; parentId?: string; statusCode?: number }) =>
+    fetchJSON<RequestComment>(`${API_BASE}/requests/${requestId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  toggleResolveComment: (commentId: string, status: 'open' | 'resolved') =>
+    fetchJSON<RequestComment>(`${API_BASE}/comments/${commentId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  deleteComment: (commentId: string) =>
+    fetchJSON<{ message: string }>(`${API_BASE}/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
 };

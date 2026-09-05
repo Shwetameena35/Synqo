@@ -155,6 +155,7 @@ func main() {
 			// Team members under workspace
 			wsGroup.GET("/:workspaceId/members", workspace.ListMembers)
 			wsGroup.POST("/:workspaceId/members", workspace.AddMember)
+			wsGroup.PUT("/:workspaceId/members/:memberId/role", workspace.UpdateMemberRole)
 			wsGroup.DELETE("/:workspaceId/members/:memberId", workspace.RemoveMember)
 			wsGroup.POST("/:workspaceId/invites", workspace.CreateInvite)
 			wsGroup.GET("/:workspaceId/invites", workspace.ListInvites)
@@ -181,6 +182,17 @@ func main() {
 			reqGroup.GET("/:id", workspace.GetRequest)
 			reqGroup.PUT("/:id", workspace.UpdateRequest)
 			reqGroup.DELETE("/:id", workspace.DeleteRequest)
+
+			// Comments on requests
+			reqGroup.GET("/:id/comments", workspace.ListComments)
+			reqGroup.POST("/:id/comments", auth.OptionalAuthMiddleware(), workspace.CreateComment)
+		}
+
+		// Direct comment actions
+		commentGroup := apiV1.Group("/comments")
+		{
+			commentGroup.PUT("/:commentId/status", workspace.ToggleResolveComment)
+			commentGroup.DELETE("/:commentId", workspace.DeleteComment)
 		}
 
 		// Environments direct operations

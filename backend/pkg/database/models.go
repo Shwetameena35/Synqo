@@ -168,3 +168,20 @@ type MetricRecord struct {
 	IsError     bool      `gorm:"index" json:"isError"`
 	Timestamp   time.Time `gorm:"index" json:"timestamp"`
 }
+
+// RequestComment represents a team discussion or issue report on an API request
+type RequestComment struct {
+	ID          string           `gorm:"primaryKey;type:varchar(64)" json:"id"`
+	RequestID   string           `gorm:"type:varchar(64);index;not null" json:"requestId"`
+	WorkspaceID string           `gorm:"type:varchar(64);index;not null" json:"workspaceId"`
+	ParentID    string           `gorm:"type:varchar(64);index" json:"parentId"` // Empty if root comment, set if reply
+	AuthorID    string           `gorm:"type:varchar(64);not null" json:"authorId"`
+	AuthorName  string           `gorm:"type:varchar(128);not null" json:"authorName"`
+	AuthorEmail string           `gorm:"type:varchar(128)" json:"authorEmail"`
+	Content     string           `gorm:"type:text;not null" json:"content"`
+	Status      string           `gorm:"type:varchar(32);default:'open'" json:"status"` // "open", "resolved"
+	StatusCode  int              `json:"statusCode,omitempty"`
+	Replies     []RequestComment `gorm:"-" json:"replies,omitempty"`
+	CreatedAt   time.Time        `json:"createdAt"`
+	UpdatedAt   time.Time        `json:"updatedAt"`
+}

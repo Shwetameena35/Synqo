@@ -152,24 +152,67 @@ export const EnvironmentModal: React.FC<EnvironmentModalProps> = ({
           <div className="col-span-8 p-5 flex flex-col h-full overflow-hidden bg-slate-950/60">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <span className="text-xs font-bold text-slate-200">{selectedEnv?.name} Variables</span>
-                <p className="text-[11px] text-slate-400">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-bold text-slate-200">{selectedEnv?.name} Variables</span>
+                  {selectedEnv?.id === currentEnvironment?.id && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center space-x-1">
+                      <Check className="h-2.5 w-2.5" />
+                      <span>Active</span>
+                    </span>
+                  )}
+                  {selectedEnv?.isDefault && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                      Default
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
                   Use in requests as <code className="text-cyan-400 font-mono">&#123;&#123;variable&#125;&#125;</code>
                 </p>
               </div>
 
-              <button
-                onClick={() =>
-                  setVariables([
-                    ...variables,
-                    { key: '', value: '', isSecret: false, enabled: true },
-                  ])
-                }
-                className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center space-x-1 font-semibold"
-              >
-                <Plus className="h-3 w-3" />
-                <span>Add Variable</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                {selectedEnv && selectedEnv.id !== currentEnvironment?.id && (
+                  <button
+                    type="button"
+                    onClick={() => onSelectEnvironment(selectedEnv)}
+                    className="text-xs px-2.5 py-1 rounded bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center space-x-1 cursor-pointer transition-colors"
+                    title="Switch active workspace environment to this one"
+                  >
+                    <Check className="h-3 w-3" />
+                    <span>Set Active</span>
+                  </button>
+                )}
+                {selectedEnv && !selectedEnv.isDefault && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await api.updateEnvironment(selectedEnv.id, { isDefault: true });
+                        onRefreshEnvironments();
+                      } catch (err: any) {
+                        alert('Failed to set default: ' + err.message);
+                      }
+                    }}
+                    className="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold cursor-pointer transition-colors"
+                    title="Set this as the default environment for the workspace"
+                  >
+                    <span>Set as Default</span>
+                  </button>
+                )}
+                <button
+                  onClick={() =>
+                    setVariables([
+                      ...variables,
+                      { key: '', value: '', isSecret: false, enabled: true },
+                    ])
+                  }
+                  className="text-xs text-emerald-400 hover:text-emerald-300 flex items-center space-x-1 font-semibold cursor-pointer"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Add Variable</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto py-3 space-y-2">
