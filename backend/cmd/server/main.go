@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"api-playground-hub/pkg/auth"
@@ -22,7 +23,48 @@ import (
 	"github.com/google/uuid"
 )
 
+// loadEnv reads key-value pairs from .env and populates environment variables
+func loadEnv() {
+	candidates := []string{".env", "../.env", "backend/.env"}
+	var envPath string
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			envPath = p
+			break
+		}
+	}
+
+	if envPath == "" {
+		return
+	}
+
+	data, err := os.ReadFile(envPath)
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			val := strings.TrimSpace(parts[1])
+			val = strings.Trim(val, `"'`)
+			if os.Getenv(key) == "" {
+				os.Setenv(key, val)
+			}
+		}
+	}
+	log.Printf("📄 Loaded environment configuration from %s\n", envPath)
+}
+
 func main() {
+	loadEnv()
 	log.Println("🚀 Initializing API Playground Hub Backend...")
 
 	// 1. Initialize Database (Dual-mode: PostgreSQL or local SQLite)

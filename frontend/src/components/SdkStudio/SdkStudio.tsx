@@ -63,9 +63,9 @@ export const SdkStudio: React.FC<SdkStudioProps> = ({ collections }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#141414] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#141414] overflow-y-auto">
       {/* Top Banner */}
-      <div className="p-4 border-b border-[#2B2B2B] bg-[#1C1C1C] flex items-center justify-between">
+      <div className="p-4 border-b border-[#2B2B2B] bg-[#1C1C1C] flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
         <div>
           <div className="text-sm font-bold text-neutral-100 flex items-center space-x-2">
             <Code2 className="h-4 w-4 text-[#FF6C37]" />
@@ -79,7 +79,7 @@ export const SdkStudio: React.FC<SdkStudioProps> = ({ collections }) => {
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 shrink-0">
           <button
             onClick={handleCopy}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs font-semibold text-neutral-200 transition-colors cursor-pointer"
@@ -108,8 +108,8 @@ export const SdkStudio: React.FC<SdkStudioProps> = ({ collections }) => {
       </div>
 
       {/* Selector Bar */}
-      <div className="px-4 py-3 border-b border-[#2B2B2B] bg-[#181818] flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+      <div className="px-4 py-3 border-b border-[#2B2B2B] bg-[#181818] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-medium text-neutral-400">Collection:</span>
             <select
@@ -125,10 +125,10 @@ export const SdkStudio: React.FC<SdkStudioProps> = ({ collections }) => {
             </select>
           </div>
 
-          <div className="h-4 w-[1px] bg-[#2E2E2E]" />
+          <div className="hidden sm:block h-4 w-[1px] bg-[#2E2E2E]" />
 
           {/* Language Tabs */}
-          <div className="flex items-center space-x-1 bg-[#141414] p-1 rounded-lg border border-[#2E2E2E]">
+          <div className="flex items-center space-x-1 bg-[#141414] p-1 rounded-lg border border-[#2E2E2E] overflow-x-auto">
             {(['go', 'typescript', 'python', 'java'] as const).map((lang) => {
               const isSelected = language === lang;
               const labels: Record<string, string> = {

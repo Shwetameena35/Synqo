@@ -26,7 +26,11 @@ class RealtimeClient {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const host = isDev ? 'localhost:8080' : window.location.host;
-    const url = `${protocol}//${host}/api/v1/ws/${workspaceId}?userName=${encodeURIComponent(userName)}`;
+
+    // Use VITE_WS_URL from .env if defined, otherwise derive from host/protocol
+    const configuredWs = import.meta.env.VITE_WS_URL;
+    const wsBase = configuredWs ? configuredWs.replace(/\/$/, '') : `${protocol}//${host}/api/v1/ws`;
+    const url = `${wsBase}/${workspaceId}?userName=${encodeURIComponent(userName)}`;
 
     try {
       this.socket = new WebSocket(url);

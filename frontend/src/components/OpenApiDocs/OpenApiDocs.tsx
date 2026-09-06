@@ -80,9 +80,9 @@ export const OpenApiDocs: React.FC<OpenApiDocsProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[#141414] overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-[#141414] overflow-y-auto">
       {/* Top Header */}
-      <div className="p-4 border-b border-[#2B2B2B] bg-[#1C1C1C] flex items-center justify-between">
+      <div className="p-4 border-b border-[#2B2B2B] bg-[#1C1C1C] flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
         <div>
           <div className="text-sm font-bold text-neutral-100 flex items-center space-x-2">
             <BookOpen className="h-4 w-4 text-[#FF6C37]" />
@@ -96,7 +96,7 @@ export const OpenApiDocs: React.FC<OpenApiDocsProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 shrink-0">
           <button
             onClick={onOpenImportModal}
             className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs font-semibold text-neutral-200 cursor-pointer"
@@ -108,7 +108,7 @@ export const OpenApiDocs: React.FC<OpenApiDocsProps> = ({
       </div>
 
       {/* Collection Switcher & Search Bar */}
-      <div className="px-4 py-3 border-b border-[#2B2B2B] bg-[#181818] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-[#2B2B2B] bg-[#181818] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className="text-xs font-medium text-neutral-400">Documentation for:</span>
@@ -126,7 +126,7 @@ export const OpenApiDocs: React.FC<OpenApiDocsProps> = ({
           </div>
         </div>
 
-        <div className="relative w-64">
+        <div className="relative w-full sm:w-64">
           <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-neutral-500" />
           <input
             type="text"
