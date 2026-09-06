@@ -14,7 +14,9 @@ import {
   RequestComment,
 } from '../types';
 
-const API_BASE = '/api/v1';
+const envApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const envBasePath = import.meta.env.VITE_API_BASE_PATH || '/api/v1';
+export const API_BASE = envApiUrl ? `${envApiUrl}${envBasePath}` : envBasePath;
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token');

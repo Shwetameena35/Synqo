@@ -72,7 +72,7 @@ export const MockStudio: React.FC<MockStudioProps> = ({
   }, [onRefreshMocks]);
 
   const handleCopyUrl = (mock: MockEndpoint) => {
-    const origin = window.location.port === '5173' ? 'http://localhost:8080' : window.location.origin;
+    const origin = (import.meta.env.VITE_API_URL || (window.location.port === '5173' ? 'http://localhost:8080' : window.location.origin)).replace(/\/$/, '');
     const cleanPath = mock.path.startsWith('/') ? mock.path : '/' + mock.path;
     const fullUrl = `${origin}/api/v1/mock/${workspaceId}${cleanPath}`;
     navigator.clipboard.writeText(fullUrl);
@@ -109,7 +109,7 @@ export const MockStudio: React.FC<MockStudioProps> = ({
     }
   };
 
-  const origin = window.location.port === '5173' ? 'http://localhost:8080' : window.location.origin;
+  const origin = (import.meta.env.VITE_API_URL || (window.location.port === '5173' ? 'http://localhost:8080' : window.location.origin)).replace(/\/$/, '');
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#141414] overflow-hidden">

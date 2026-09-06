@@ -171,7 +171,17 @@ go run cmd/server/main.go
 ```
 *The server will start at `http://localhost:8080`, auto-load `.env`, create the local SQLite database, and seed realistic demo e-commerce data.*
 
-### 3. Start the React Frontend
+### 3. Configure Frontend Environment (Optional)
+Create `frontend/.env` (a template is available in `frontend/.env.example`):
+
+```env
+VITE_API_URL=http://localhost:8080
+VITE_API_BASE_PATH=/api/v1
+VITE_WS_URL=ws://localhost:8080/api/v1/ws
+VITE_APP_NAME=Synqo
+```
+
+### 4. Start the React Frontend
 ```bash
 cd frontend
 npm install

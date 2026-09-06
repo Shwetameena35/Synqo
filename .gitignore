@@ -28,6 +28,15 @@ backend/api_playground.db
 .env
 .env.local
 .env.*.local
+*.env
+*.env.local
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+!.env.example
+!backend/.env.example
+!frontend/.env.example
 
 # IDE & OS Metadata
 .vscode/
