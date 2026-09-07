@@ -95,12 +95,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => handleQuickDemoLogin('palak@apihub.dev')}
+                onClick={() => handleQuickDemoLogin('demo@apihub.dev')}
                 className="p-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition-all hover:border-cyan-500/40 cursor-pointer"
               >
                 <div className="text-xs font-bold text-white flex items-center space-x-1.5">
                   <span className="h-2 w-2 rounded-full bg-cyan-400" />
-                  <span>Palak Sharma</span>
+                  <span>Demo Admin</span>
                 </div>
                 <div className="text-[10px] text-slate-400 mt-0.5">Demo Team • Lead Architect</div>
               </button>
