@@ -1,14 +1,10 @@
-package main
+package routes
 
 import (
-	"log"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"api-playground-hub/pkg/auth"
-	"api-playground-hub/pkg/database"
 	"api-playground-hub/pkg/environment"
 	"api-playground-hub/pkg/mock"
 	"api-playground-hub/pkg/monitoring"
@@ -18,82 +14,13 @@ import (
 	"api-playground-hub/pkg/sdkgen"
 	"api-playground-hub/pkg/workspace"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-// loadEnv reads key-value pairs from .env and populates environment variables
-func loadEnv() {
-	candidates := []string{".env", "../.env", "backend/.env"}
-	var envPath string
-	for _, p := range candidates {
-		if _, err := os.Stat(p); err == nil {
-			envPath = p
-			break
-		}
-	}
-
-	if envPath == "" {
-		return
-	}
-
-	data, err := os.ReadFile(envPath)
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			val := strings.TrimSpace(parts[1])
-			val = strings.Trim(val, `"'`)
-			if os.Getenv(key) == "" {
-				os.Setenv(key, val)
-			}
-		}
-	}
-	log.Printf("📄 Loaded environment configuration from %s\n", envPath)
-}
-
-func main() {
-	loadEnv()
-	log.Println("🚀 Initializing API Playground Hub Backend...")
-
-	// 1. Initialize Database (Dual-mode: PostgreSQL or local SQLite)
-	db, err := database.InitDB()
-	if err != nil {
-		log.Fatalf("Fatal: Failed to connect to database: %v\n", err)
-	}
-
-	// 2. Seed realistic demo data
-	database.SeedDemoData(db)
-
-	// 3. Initialize WebSocket collaboration hub
-	realtime.InitHub()
-
-	// 4. Configure Gin Router
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
-
-	// Enable CORS for frontend and tools
-	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length", "X-Mock-Server", "X-Mock-Endpoint-ID"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
-
-	// Health Check
+// RegisterRoutes registers all API endpoints and route groups onto the Gin engine
+func RegisterRoutes(router *gin.Engine) {
+	// Root Health Check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "healthy",
@@ -108,54 +35,11 @@ func main() {
 		// Real-time WebSocket connection
 		apiV1.GET("/ws/:workspaceId", realtime.HandleWebSocket)
 
-		// Dynamic Mock Server Serving Route (Accepts any HTTP verb!)
+		// Dynamic Mock Server Serving Route (Accepts any HTTP verb)
 		apiV1.Any("/mock/:workspaceId/*path", mock.ServeMockEndpoint)
 
 		// Live Catalog & Demo API Endpoints
-		apiV1.GET("/products", func(c *gin.Context) {
-			c.JSON(http.StatusOK, []gin.H{
-				{"id": "prod_101", "title": "Quantum Mechanical Keyboard", "price": 149.99, "category": "Electronics", "inStock": true, "rating": 4.8},
-				{"id": "prod_102", "title": "Wireless Ergonomic Mouse", "price": 79.50, "category": "Accessories", "inStock": true, "rating": 4.6},
-				{"id": "prod_103", "title": "Noise-Cancelling Studio Headphones", "price": 299.00, "category": "Audio", "inStock": false, "rating": 4.9},
-			})
-		})
-
-		apiV1.POST("/products", func(c *gin.Context) {
-			var body map[string]any
-			c.ShouldBindJSON(&body)
-			c.JSON(http.StatusCreated, gin.H{
-				"id": "prod_" + uuid.New().String()[:8],
-				"status": "created",
-				"product": body,
-				"createdAt": time.Now().Format(time.RFC3339),
-			})
-		})
-
-		apiV1.GET("/orders", func(c *gin.Context) {
-			c.JSON(http.StatusOK, []gin.H{
-				{"id": "ord_8849101", "customer": "palak@apihub.dev", "total": 149.99, "status": "shipped"},
-				{"id": "ord_8849102", "customer": "alex@apihub.dev", "total": 378.50, "status": "processing"},
-			})
-		})
-
-		apiV1.POST("/checkout", func(c *gin.Context) {
-			c.JSON(http.StatusCreated, gin.H{
-				"status": "success",
-				"orderId": "ord_" + uuid.New().String()[:8],
-				"total": 378.50,
-				"currency": "USD",
-				"estimatedDelivery": "3 business days",
-				"receiptUrl": "https://apihub.dev/receipts/ord_8849102",
-			})
-		})
-
-		apiV1.GET("/users", func(c *gin.Context) {
-			c.JSON(http.StatusOK, []gin.H{
-				{"id": 1, "name": "Palak Sharma", "email": "palak@apihub.dev", "role": "Lead Architect"},
-				{"id": 2, "name": "Alex Chen", "email": "alex@apihub.dev", "role": "Fullstack Engineer"},
-				{"id": 3, "name": "Sarah Connor", "email": "sarah@cyberdyne.io", "role": "DevOps Specialist"},
-			})
-		})
+		registerDemoRoutes(apiV1)
 
 		// Auth Service routes
 		authGroup := apiV1.Group("/auth")
@@ -260,14 +144,52 @@ func main() {
 		// Monitoring Telemetry metrics
 		apiV1.GET("/monitoring/metrics", monitoring.GetMetricsSummary)
 	}
+}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+// registerDemoRoutes defines sample endpoints for catalog, orders, and checkout
+func registerDemoRoutes(apiV1 *gin.RouterGroup) {
+	apiV1.GET("/products", func(c *gin.Context) {
+		c.JSON(http.StatusOK, []gin.H{
+			{"id": "prod_101", "title": "Quantum Mechanical Keyboard", "price": 149.99, "category": "Electronics", "inStock": true, "rating": 4.8},
+			{"id": "prod_102", "title": "Wireless Ergonomic Mouse", "price": 79.50, "category": "Accessories", "inStock": true, "rating": 4.6},
+			{"id": "prod_103", "title": "Noise-Cancelling Studio Headphones", "price": 299.00, "category": "Audio", "inStock": false, "rating": 4.9},
+		})
+	})
 
-	log.Printf("⚡ API Playground Hub Backend running at http://localhost:%s\n", port)
-	if err := router.Run(":" + port); err != nil {
-		log.Fatalf("Server startup failed: %v\n", err)
-	}
+	apiV1.POST("/products", func(c *gin.Context) {
+		var body map[string]any
+		c.ShouldBindJSON(&body)
+		c.JSON(http.StatusCreated, gin.H{
+			"id":        "prod_" + uuid.New().String()[:8],
+			"status":    "created",
+			"product":   body,
+			"createdAt": time.Now().Format(time.RFC3339),
+		})
+	})
+
+	apiV1.GET("/orders", func(c *gin.Context) {
+		c.JSON(http.StatusOK, []gin.H{
+			{"id": "ord_8849101", "customer": "palak@apihub.dev", "total": 149.99, "status": "shipped"},
+			{"id": "ord_8849102", "customer": "alex@apihub.dev", "total": 378.50, "status": "processing"},
+		})
+	})
+
+	apiV1.POST("/checkout", func(c *gin.Context) {
+		c.JSON(http.StatusCreated, gin.H{
+			"status":            "success",
+			"orderId":           "ord_" + uuid.New().String()[:8],
+			"total":             378.50,
+			"currency":          "USD",
+			"estimatedDelivery": "3 business days",
+			"receiptUrl":        "https://apihub.dev/receipts/ord_8849102",
+		})
+	})
+
+	apiV1.GET("/users", func(c *gin.Context) {
+		c.JSON(http.StatusOK, []gin.H{
+			{"id": 1, "name": "Palak Sharma", "email": "palak@apihub.dev", "role": "Lead Architect"},
+			{"id": 2, "name": "Alex Chen", "email": "alex@apihub.dev", "role": "Fullstack Engineer"},
+			{"id": 3, "name": "Sarah Connor", "email": "sarah@cyberdyne.io", "role": "DevOps Specialist"},
+		})
+	})
 }

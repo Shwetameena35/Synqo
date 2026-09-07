@@ -15,6 +15,7 @@
 ## 🌟 Overview: What is Synqo?
 
 Modern backend and frontend teams work with APIs every day, but their workflow is fragmented across multiple disjointed tools:
+
 - **Postman** for collections and manual tests
 - **Swagger / Readme** for API specifications and static docs
 - **Mock servers** (Beeceptor, Mockoon) on external domains
@@ -29,10 +30,11 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 ## 🚀 Key Feature Pillars
 
 ### 1. ⚡ High-Performance Request Builder & Testing Runner
+
 - **Zero-CORS Backend Proxy**: Execute HTTP requests (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) via high-speed Go proxy with millisecond precision latency timers.
 - **Instant cURL Import**:
-  - *Smart URL Bar Paste*: Paste any raw `curl ...` command directly into the address bar to auto-populate method, endpoint, headers, body, and query parameters.
-  - *Dedicated Import Modal*: Monospace cURL editor with 1-click preset templates (*JSON POST*, *GET with Params*, *Form Data Upload*, *Basic Auth*) and live parsed breakdown.
+  - _Smart URL Bar Paste_: Paste any raw `curl ...` command directly into the address bar to auto-populate method, endpoint, headers, body, and query parameters.
+  - _Dedicated Import Modal_: Monospace cURL editor with 1-click preset templates (_JSON POST_, _GET with Params_, _Form Data Upload_, _Basic Auth_) and live parsed breakdown.
 - **Keyboard Execution Shortcuts**:
   - `↵ Enter` directly in the address bar sends the request immediately.
   - `Ctrl + Enter` (or `Cmd + Enter`) triggers execution globally from any tab (Params, Headers, Body, Auth, Tests).
@@ -45,6 +47,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
   - Comprehensive historical execution log with one-click restore.
 
 ### 2. 📡 Dynamic Mock Server Studio
+
 - Create live mock endpoints with custom routes (e.g. `GET /users`, `POST /orders`).
 - Configurable response HTTP status codes (`200`, `201`, `400`, `404`, `500`).
 - Artificial delay simulation (0ms to 3000ms) to test loading skeletons and race conditions.
@@ -53,12 +56,14 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 - **Live Traffic Stream**: Real-time incoming mock requests (Client IP, method, headers, duration, body) delivered instantly over WebSockets.
 
 ### 3. 📖 OpenAPI 3.0 & Swagger Hub
+
 - Drag-and-drop or paste OpenAPI 3.0 / Swagger 2.0 specifications (JSON or YAML).
 - Interactive API documentation with schemas, parameters, tags, and request samples.
 - One-click **"Try in Runner"** action loads documented endpoints straight into the Request Builder.
 - Export collections back to OpenAPI 3.0 JSON format.
 
 ### 4. 📦 Multi-Language SDK Generator
+
 - Auto-generate idiomatic, type-safe API client libraries:
   - **Go**: `net/http` client struct, context timeouts, request wrappers, and error decoders.
   - **TypeScript**: Universal `fetch` client class with typed async methods.
@@ -67,6 +72,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 - In-browser code preview with one-click copy and source file download.
 
 ### 5. 👥 Team Collaboration & Telemetry
+
 - **Google Docs-Style Presence**: Live collaborator avatars powered by Gorilla WebSockets.
 - **Role Management**: Workspace owners can switch member roles between **`Editor`** and **`Viewer`**.
 - **Team Comments & Issue Tracking**: Leave discussions, report broken/failing endpoints, reply in threads, and resolve issues directly on individual requests.
@@ -77,6 +83,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
   - 5-minute time-series throughput charts.
 
 ### 6. 📱 Full Mobile, Tablet & Desktop Responsiveness
+
 - **Off-Canvas Sidebar Drawer**: On viewports `< 1024px`, the dual-rail sidebar slides in as a mobile drawer with a glassmorphism backdrop. Automatically dismisses upon choosing a request or tab.
 - **Adaptive Navigation Bar**: Hamburger menu button (☰), gracefully truncated workspace/environment names, compact `+` button, and a responsive **More Options** (`...`) dropdown menu.
 - **Smart Segmented Mobile View Switcher**:
@@ -85,6 +92,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 - **Horizontal Scroll Containers**: Request tabs and key-value tables scroll smoothly on small screens.
 
 ### 7. 🔐 Dynamic Environment Configuration & Auth
+
 - **Configurable in `.env`**:
   - `JWT_EXPIRATION_HOURS=24`: Configurable token expiration duration (defaults to 24 hours).
   - `JWT_EXPIRES_IN=24h`: Flexible duration strings (e.g. `24h`, `7d`, `168h`, `30m`).
@@ -133,13 +141,13 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 
 ## 🛠️ Tech Stack
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons, Custom Vector Favicon |
-| **Backend** | Go 1.26+, Gin Web Framework, Gorilla WebSocket, GORM, `golang-jwt/v5`, `bcrypt` |
-| **Storage (Dual)** | PostgreSQL (Production) / SQLite with zero-setup automatic migrations (Local) |
-| **PubSub & Cache** | Redis (Production) / In-Memory Channel Hub (Local development) |
-| **DevOps** | Docker, Docker Compose, Kubernetes manifests |
+| Layer              | Technologies                                                                    |
+| ------------------ | ------------------------------------------------------------------------------- |
+| **Frontend**       | React 19, TypeScript, Vite, Tailwind CSS, Lucide Icons, Custom Vector Favicon   |
+| **Backend**        | Go 1.26+, Gin Web Framework, Gorilla WebSocket, GORM, `golang-jwt/v5`, `bcrypt` |
+| **Storage (Dual)** | PostgreSQL (Production) / SQLite with zero-setup automatic migrations (Local)   |
+| **PubSub & Cache** | Redis (Production) / In-Memory Channel Hub (Local development)                  |
+| **DevOps**         | Docker, Docker Compose, Kubernetes manifests                                    |
 
 ---
 
@@ -148,12 +156,14 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 Synqo is engineered for zero-friction setup. It runs locally on any machine with Go and Node.js without requiring external database servers!
 
 ### Prerequisites
+
 - [Go 1.22+](https://golang.org/dl/)
 - [Node.js 18+](https://nodejs.org/) & npm
 
 ---
 
 ### 1. Configure Backend Environment
+
 Create or adjust `backend/.env` (a template is available in `backend/.env.example`):
 
 ```env
@@ -165,13 +175,16 @@ SQLITE_PATH=api_playground.db
 ```
 
 ### 2. Start the Go Backend
+
 ```bash
 cd backend
-go run cmd/server/main.go
+go run main.go
 ```
-*The server will start at `http://localhost:8080`, auto-load `.env`, create the local SQLite database, and seed realistic demo e-commerce data.*
+
+_The server will start at `http://localhost:8080`, auto-load `.env`, create the local SQLite database, and seed realistic demo e-commerce data._
 
 ### 3. Configure Frontend Environment (Optional)
+
 Create `frontend/.env` (a template is available in `frontend/.env.example`):
 
 ```env
@@ -182,12 +195,14 @@ VITE_APP_NAME=Synqo
 ```
 
 ### 4. Start the React Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-*Open `http://localhost:5173` in your browser.*
+
+_Open `http://localhost:5173` in your browser._
 
 ---
 
@@ -208,62 +223,68 @@ docker-compose up --build
 
 ## ⌨️ Keyboard Shortcuts Reference
 
-| Shortcut | Scope | Action |
-|---|---|---|
-| `↵ Enter` | Address Bar | Send active API request |
-| `Ctrl + Enter` / `Cmd + Enter` | Anywhere | Send active API request |
-| `Ctrl + S` / `Cmd + S` | Anywhere | Save current request draft |
-| `Click on {{var}}` | Address Bar | Inspect variable, reveal secret, or edit in-place |
-| `Ctrl + Click on {{var}}` | Address Bar | Inspect dynamic variable |
-| `Escape` | Modals & Menus | Dismiss dropdowns, sidebar drawer, or modal dialogs |
+| Shortcut                       | Scope          | Action                                              |
+| ------------------------------ | -------------- | --------------------------------------------------- |
+| `↵ Enter`                      | Address Bar    | Send active API request                             |
+| `Ctrl + Enter` / `Cmd + Enter` | Anywhere       | Send active API request                             |
+| `Ctrl + S` / `Cmd + S`         | Anywhere       | Save current request draft                          |
+| `Click on {{var}}`             | Address Bar    | Inspect variable, reveal secret, or edit in-place   |
+| `Ctrl + Click on {{var}}`      | Address Bar    | Inspect dynamic variable                            |
+| `Escape`                       | Modals & Menus | Dismiss dropdowns, sidebar drawer, or modal dialogs |
 
 ---
 
 ## 📚 Core API Endpoints Reference
 
 ### Authentication
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/auth/register` | Register new user account |
-| `POST` | `/api/v1/auth/login` | Login and receive 24h JWT token |
-| `GET` | `/api/v1/auth/me` | Retrieve profile of authenticated user |
+
+| Method | Endpoint                | Description                            |
+| ------ | ----------------------- | -------------------------------------- |
+| `POST` | `/api/v1/auth/register` | Register new user account              |
+| `POST` | `/api/v1/auth/login`    | Login and receive 24h JWT token        |
+| `GET`  | `/api/v1/auth/me`       | Retrieve profile of authenticated user |
 
 ### Dynamic Mock Server
-| Method | Endpoint | Description |
-|---|---|---|
-| `ANY` | `/api/v1/mock/:workspaceId/*path` | Dispatches dynamic mock response matching method & route |
-| `GET` | `/api/v1/workspaces/:workspaceId/mocks` | Lists all configured mock endpoints |
-| `POST` | `/api/v1/workspaces/:workspaceId/mocks` | Creates a new mock endpoint with delay simulation |
+
+| Method | Endpoint                                | Description                                              |
+| ------ | --------------------------------------- | -------------------------------------------------------- |
+| `ANY`  | `/api/v1/mock/:workspaceId/*path`       | Dispatches dynamic mock response matching method & route |
+| `GET`  | `/api/v1/workspaces/:workspaceId/mocks` | Lists all configured mock endpoints                      |
+| `POST` | `/api/v1/workspaces/:workspaceId/mocks` | Creates a new mock endpoint with delay simulation        |
 
 ### API Test Runner
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/runner/execute` | Executes HTTP request through backend proxy and evaluates assertions |
-| `GET` | `/api/v1/workspaces/:workspaceId/history` | Retrieves recent test execution history |
-| `DELETE` | `/api/v1/workspaces/:workspaceId/history` | Clears test execution history |
+
+| Method   | Endpoint                                  | Description                                                          |
+| -------- | ----------------------------------------- | -------------------------------------------------------------------- |
+| `POST`   | `/api/v1/runner/execute`                  | Executes HTTP request through backend proxy and evaluates assertions |
+| `GET`    | `/api/v1/workspaces/:workspaceId/history` | Retrieves recent test execution history                              |
+| `DELETE` | `/api/v1/workspaces/:workspaceId/history` | Clears test execution history                                        |
 
 ### Workspaces, Collections & Environments
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/workspaces` | Lists all workspaces for current user |
-| `POST` | `/api/v1/workspaces` | Creates a new workspace |
-| `GET` | `/api/v1/workspaces/:workspaceId/collections` | Returns collections with folders and requests |
-| `POST` | `/api/v1/workspaces/:workspaceId/collections` | Creates a new collection |
-| `GET` | `/api/v1/workspaces/:workspaceId/environments` | Lists environments and variables |
-| `PUT` | `/api/v1/environments/:id` | Updates environment variables |
+
+| Method | Endpoint                                       | Description                                   |
+| ------ | ---------------------------------------------- | --------------------------------------------- |
+| `GET`  | `/api/v1/workspaces`                           | Lists all workspaces for current user         |
+| `POST` | `/api/v1/workspaces`                           | Creates a new workspace                       |
+| `GET`  | `/api/v1/workspaces/:workspaceId/collections`  | Returns collections with folders and requests |
+| `POST` | `/api/v1/workspaces/:workspaceId/collections`  | Creates a new collection                      |
+| `GET`  | `/api/v1/workspaces/:workspaceId/environments` | Lists environments and variables              |
+| `PUT`  | `/api/v1/environments/:id`                     | Updates environment variables                 |
 
 ### OpenAPI & SDK Generation
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/v1/workspaces/:workspaceId/openapi/import` | Imports OpenAPI/Swagger spec into collections |
-| `GET` | `/api/v1/collections/:collectionId/openapi/export` | Exports collection as OpenAPI 3.0 spec |
-| `GET` | `/api/v1/collections/:collectionId/sdk?lang=go` | Generates Go, TypeScript, Python, or Java SDK |
+
+| Method | Endpoint                                           | Description                                   |
+| ------ | -------------------------------------------------- | --------------------------------------------- |
+| `POST` | `/api/v1/workspaces/:workspaceId/openapi/import`   | Imports OpenAPI/Swagger spec into collections |
+| `GET`  | `/api/v1/collections/:collectionId/openapi/export` | Exports collection as OpenAPI 3.0 spec        |
+| `GET`  | `/api/v1/collections/:collectionId/sdk?lang=go`    | Generates Go, TypeScript, Python, or Java SDK |
 
 ### Telemetry & Real-Time Collaboration
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/monitoring/metrics` | Returns throughput, latency percentiles, and error rate |
-| `GET` | `/api/v1/ws/:workspaceId` | WebSocket connection for live presence, updates, and mock stream |
+
+| Method | Endpoint                     | Description                                                      |
+| ------ | ---------------------------- | ---------------------------------------------------------------- |
+| `GET`  | `/api/v1/monitoring/metrics` | Returns throughput, latency percentiles, and error rate          |
+| `GET`  | `/api/v1/ws/:workspaceId`    | WebSocket connection for live presence, updates, and mock stream |
 
 ---
 
