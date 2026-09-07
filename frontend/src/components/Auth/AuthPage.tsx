@@ -348,10 +348,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onExploreDem
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoSelect('palak@apihub.dev')}
+                  onClick={() => handleQuickDemoSelect('demo@apihub.dev')}
                   className="p-2 rounded-lg bg-slate-950 hover:bg-slate-800/80 border border-slate-800 text-left transition-colors cursor-pointer"
                 >
-                  <div className="text-xs font-semibold text-slate-200">Palak Sharma</div>
+                  <div className="text-xs font-semibold text-slate-200">Demo Admin</div>
                   <div className="text-[10px] text-cyan-400 font-medium">Lead Architect (Admin)</div>
                 </button>
                 <button

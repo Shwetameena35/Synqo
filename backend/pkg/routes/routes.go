@@ -169,7 +169,7 @@ func registerDemoRoutes(apiV1 *gin.RouterGroup) {
 
 	apiV1.GET("/orders", func(c *gin.Context) {
 		c.JSON(http.StatusOK, []gin.H{
-			{"id": "ord_8849101", "customer": "palak@apihub.dev", "total": 149.99, "status": "shipped"},
+			{"id": "ord_8849101", "customer": "demo@apihub.dev", "total": 149.99, "status": "shipped"},
 			{"id": "ord_8849102", "customer": "alex@apihub.dev", "total": 378.50, "status": "processing"},
 		})
 	})
@@ -187,7 +187,7 @@ func registerDemoRoutes(apiV1 *gin.RouterGroup) {
 
 	apiV1.GET("/users", func(c *gin.Context) {
 		c.JSON(http.StatusOK, []gin.H{
-			{"id": 1, "name": "Palak Sharma", "email": "palak@apihub.dev", "role": "Lead Architect"},
+			{"id": 1, "name": "Demo Admin", "email": "demo@apihub.dev", "role": "Lead Architect"},
 			{"id": 2, "name": "Alex Chen", "email": "alex@apihub.dev", "role": "Fullstack Engineer"},
 			{"id": 3, "name": "Sarah Connor", "email": "sarah@cyberdyne.io", "role": "DevOps Specialist"},
 		})

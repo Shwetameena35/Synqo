@@ -135,7 +135,7 @@ export const MockStudio: React.FC<MockStudioProps> = ({
             setFormPath('/users');
             setFormStatusCode(200);
             setFormDelayMs(100);
-            setFormBody('{\n  "id": 1,\n  "name": "Palak Sharma"\n}');
+            setFormBody('{\n  "id": 1,\n  "name": "Demo User"\n}');
             setIsModalOpen(true);
           }}
           className="flex items-center justify-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-[#FF6C37] hover:bg-[#FF5216] active:bg-[#E5450B] text-xs font-bold text-white shadow-lg shadow-orange-600/25 transition-all cursor-pointer shrink-0"

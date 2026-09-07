@@ -247,7 +247,7 @@ func CreateWorkspace(c *gin.Context) {
 	userIDVal, hasUser := c.Get("userId")
 	emailVal, _ := c.Get("email")
 	userID := "usr_demo_1"
-	userEmail := "palak@apihub.dev"
+	userEmail := "demo@apihub.dev"
 	userName := "Creator"
 
 	if hasUser && userIDVal != "" {
