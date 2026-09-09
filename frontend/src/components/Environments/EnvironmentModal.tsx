@@ -63,7 +63,7 @@ export const EnvironmentModal: React.FC<EnvironmentModalProps> = ({
       const created = await api.createEnvironment(workspaceId, {
         name: newEnvName.trim(),
         isDefault: false,
-        variables: `[{"key": "baseUrl", "value": "https://api.example.com", "isSecret": false, "enabled": true}]`,
+        variables: `[]`,
       });
       setNewEnvName('');
       setShowNewEnvInput(false);
@@ -131,7 +131,7 @@ export const EnvironmentModal: React.FC<EnvironmentModalProps> = ({
                 <button
                   key={env.id}
                   onClick={() => setSelectedEnv(env)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                  className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${
                     selectedEnv?.id === env.id
                       ? 'bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30'
                       : 'text-slate-300 hover:bg-slate-800'
@@ -145,21 +145,55 @@ export const EnvironmentModal: React.FC<EnvironmentModalProps> = ({
                   )}
                 </button>
               ))}
+
+              {environments.length === 0 && !showNewEnvInput && (
+                <div className="text-center py-8 px-2 text-neutral-500 text-xs">
+                  <Globe className="h-6 w-6 mx-auto mb-2 text-neutral-600 opacity-60" />
+                  <p>No environments</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewEnvInput(true)}
+                    className="mt-2 text-[11px] text-[#FF6C37] hover:underline cursor-pointer"
+                  >
+                    + Create First Environment
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Variables Table */}
           <div className="col-span-8 p-5 flex flex-col h-full overflow-hidden bg-slate-950/60">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs font-bold text-slate-200">{selectedEnv?.name} Variables</span>
-                  {selectedEnv?.id === currentEnvironment?.id && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center space-x-1">
-                      <Check className="h-2.5 w-2.5" />
-                      <span>Active</span>
-                    </span>
-                  )}
+            {!selectedEnv ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                <div className="h-12 w-12 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-500 mb-3">
+                  <Globe className="h-6 w-6 text-neutral-500" />
+                </div>
+                <h4 className="text-sm font-semibold text-white">No Environment Selected</h4>
+                <p className="text-xs text-neutral-400 mt-1.5 max-w-sm leading-relaxed">
+                  Environments let you store variables (like <code className="text-[#FF6C37] font-mono">&#123;&#123;baseUrl&#125;&#125;</code> or <code className="text-[#FF6C37] font-mono">&#123;&#123;apiKey&#125;&#125;</code>) so you can easily switch between Development, Staging, and Production.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowNewEnvInput(true)}
+                  className="mt-4 px-3.5 py-1.5 rounded-md bg-[#FF6C37] hover:bg-[#FF5216] text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Create New Environment</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-bold text-slate-200">{selectedEnv?.name} Variables</span>
+                      {selectedEnv?.id === currentEnvironment?.id && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold flex items-center space-x-1">
+                          <Check className="h-2.5 w-2.5" />
+                          <span>Active</span>
+                        </span>
+                      )}
                   {selectedEnv?.isDefault && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
                       Default
@@ -313,7 +347,9 @@ export const EnvironmentModal: React.FC<EnvironmentModalProps> = ({
                 Save Variables
               </button>
             </div>
-          </div>
+            </>
+          )}
+        </div>
         </div>
       </div>
     </div>

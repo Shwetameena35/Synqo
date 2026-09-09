@@ -355,7 +355,9 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       setMethod(request.method || 'GET');
       setUrl(request.url || '');
       setName(request.name || 'Untitled Request');
-      setSelectedColId(request.collectionId || (collections && collections.length > 0 ? collections[0].id : ''));
+      const safeColId = typeof request.collectionId === 'string' ? request.collectionId : '';
+      const fallbackColId = (collections && collections.length > 0 && typeof collections[0]?.id === 'string') ? collections[0].id : '';
+      setSelectedColId(safeColId || fallbackColId);
 
       try {
         const parsedParams = JSON.parse(request.params || '[]');
@@ -426,8 +428,26 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       } catch {
         setTests([]);
       }
+    } else {
+      setMethod('GET');
+      setUrl('');
+      setName('Untitled Request');
+      setSelectedColId(collections && collections.length > 0 ? collections[0].id : '');
+      setParams([]);
+      setHeaders([]);
+      setBodyType('none');
+      setBodyContent('');
+      setFormDataList([]);
+      setUrlEncodedList([]);
+      setAuthType('none');
+      setAuthToken('');
+      setBasicUser('');
+      setBasicPass('');
+      setApiKeyName('X-API-Key');
+      setApiKeyValue('');
+      setTests([]);
     }
-  }, [request]);
+  }, [request, collections]);
 
   const getEffectiveBodyContent = () => {
     if (bodyType === 'form-data') {
@@ -484,10 +504,16 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       authConfig.value = apiKeyValue;
     }
 
+    const targetColId = (typeof selectedColId === 'string' && selectedColId)
+      ? selectedColId
+      : (typeof request?.collectionId === 'string' && request.collectionId
+        ? request.collectionId
+        : (collections && collections.length > 0 && typeof collections[0]?.id === 'string' ? collections[0].id : undefined));
+
     try {
       await onSave({
-        id: request?.id,
-        collectionId: selectedColId || request?.collectionId,
+        id: typeof request?.id === 'string' ? request.id : undefined,
+        collectionId: targetColId,
         name,
         method,
         url,

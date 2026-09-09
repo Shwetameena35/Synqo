@@ -236,6 +236,10 @@ export function App() {
       setCollections(cols);
       if (cols.length > 0 && cols[0].requests?.length > 0 && !selectedRequest) {
         setSelectedRequest(cols[0].requests[0]);
+      } else if (cols.length === 0 || !cols.some((c) => c.requests && c.requests.length > 0)) {
+        if (!selectedRequest?.id?.startsWith('req_temp_')) {
+          setSelectedRequest(null);
+        }
       }
     });
 
@@ -388,27 +392,59 @@ export function App() {
   const handleSaveRequest = async (reqData: Partial<RequestItem>) => {
     if (!currentWorkspace) return;
 
-    if (reqData.id && reqData.id.startsWith('req_') && !reqData.id.startsWith('req_temp_')) {
-      const updated = await api.updateRequest(reqData.id, reqData);
+    const rawColId = typeof reqData.collectionId === 'string' ? reqData.collectionId : undefined;
+    const selectedColId = typeof selectedRequest?.collectionId === 'string' ? selectedRequest.collectionId : undefined;
+    const firstColId = typeof collections[0]?.id === 'string' ? collections[0].id : undefined;
+    let targetColId = rawColId || selectedColId || firstColId;
+
+    if (!targetColId) {
+      // Auto-create a default collection if user has none
+      const newCol = await api.createCollection(currentWorkspace.id, {
+        name: 'My APIs',
+        description: 'Default collection',
+      });
+      targetColId = newCol.id;
+    }
+
+    const payload = {
+      name: typeof reqData.name === 'string' && reqData.name.trim() ? reqData.name.trim() : 'Untitled Request',
+      method: typeof reqData.method === 'string' ? reqData.method : 'GET',
+      url: typeof reqData.url === 'string' ? reqData.url : '',
+      headers: typeof reqData.headers === 'string' ? reqData.headers : JSON.stringify(reqData.headers || []),
+      params: typeof reqData.params === 'string' ? reqData.params : JSON.stringify(reqData.params || []),
+      bodyType: typeof reqData.bodyType === 'string' ? reqData.bodyType : 'none',
+      bodyContent: typeof reqData.bodyContent === 'string' ? reqData.bodyContent : '',
+      authType: typeof reqData.authType === 'string' ? reqData.authType : 'none',
+      authConfig: typeof reqData.authConfig === 'string' ? reqData.authConfig : '{}',
+      tests: typeof reqData.tests === 'string' ? reqData.tests : '[]',
+      workspaceId: currentWorkspace.id,
+      collectionId: targetColId,
+    };
+
+    if (reqData.id && typeof reqData.id === 'string' && reqData.id.startsWith('req_') && !reqData.id.startsWith('req_temp_')) {
+      const updated = await api.updateRequest(reqData.id, payload);
       setSelectedRequest(updated);
     } else {
-      const targetColId = reqData.collectionId || selectedRequest?.collectionId || collections[0]?.id;
-      if (!targetColId) return;
-      const { id, ...createPayload } = reqData;
-      const created = await api.createRequest({
-        ...createPayload,
-        workspaceId: currentWorkspace.id,
-        collectionId: targetColId,
-      });
+      const created = await api.createRequest(payload);
       setSelectedRequest(created);
     }
     await loadWorkspaceData(currentWorkspace.id);
   };
 
   // Create new blank request
-  const handleNewRequest = (targetCollectionId?: string) => {
-    if (!currentWorkspace || collections.length === 0) return;
-    const colId = targetCollectionId || selectedRequest?.collectionId || collections[0].id;
+  const handleNewRequest = async (targetCollectionId?: any) => {
+    if (!currentWorkspace) return;
+    const explicitColId = typeof targetCollectionId === 'string' ? targetCollectionId : undefined;
+    let colId = explicitColId || (typeof selectedRequest?.collectionId === 'string' ? selectedRequest.collectionId : undefined) || (typeof collections[0]?.id === 'string' ? collections[0].id : undefined);
+    if (!colId) {
+      // Auto-create a default collection if user has none
+      const newCol = await api.createCollection(currentWorkspace.id, {
+        name: 'My APIs',
+        description: 'Default collection',
+      });
+      setCollections([newCol]);
+      colId = newCol.id;
+    }
     const targetCol = collections.find((c) => c.id === colId);
     const newReq: RequestItem = {
       id: `req_temp_${Date.now()}`,

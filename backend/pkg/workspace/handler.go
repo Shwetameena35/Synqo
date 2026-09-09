@@ -293,17 +293,6 @@ func CreateWorkspace(c *gin.Context) {
 		JoinedAt:    time.Now(),
 	})
 
-	// Add default environment
-	db.Create(&database.Environment{
-		ID:          "env_" + uuid.New().String()[:8],
-		WorkspaceID: ws.ID,
-		Name:        "Development",
-		IsDefault:   true,
-		Variables:   `[{"key": "baseUrl", "value": "http://localhost:8080/api/v1", "isSecret": false, "enabled": true}]`,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	})
-
 	c.JSON(http.StatusCreated, ws)
 }
 
