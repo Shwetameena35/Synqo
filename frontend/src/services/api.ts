@@ -149,6 +149,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  recordExecution: (payload: any) =>
+    fetchJSON<{ status: string; historyId: string }>(`${API_BASE}/runner/record`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   getHistory: (workspaceId: string) =>
     fetchJSON<TestHistory[]>(`${API_BASE}/workspaces/${workspaceId}/history`),
   clearHistory: (workspaceId: string) =>

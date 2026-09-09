@@ -364,3 +364,73 @@ func ClearHistory(c *gin.Context) {
 	db.Delete(&database.TestHistory{}, "workspace_id = ?", workspaceID)
 	c.JSON(http.StatusOK, gin.H{"message": "Test history cleared"})
 }
+
+// RecordExecutionPayload is sent by client-side browser runner to log test results and metrics
+type RecordExecutionPayload struct {
+	WorkspaceID      string `json:"workspaceId" binding:"required"`
+	RequestItemID    string `json:"requestItemId"`
+	RequestName      string `json:"requestName"`
+	Method           string `json:"method"`
+	URL              string `json:"url"`
+	StatusCode       int    `json:"statusCode"`
+	StatusText       string `json:"statusText"`
+	LatencyMs        int64  `json:"latencyMs"`
+	ResponseSize     int64  `json:"responseSize"`
+	ResponseHeaders  string `json:"responseHeaders"`
+	ResponseBody     string `json:"responseBody"`
+	AssertionsPassed int    `json:"assertionsPassed"`
+	AssertionsTotal  int    `json:"assertionsTotal"`
+	AssertionDetails string `json:"assertionDetails"`
+}
+
+// RecordExecution stores history and telemetry for requests executed client-side in the browser
+func RecordExecution(c *gin.Context) {
+	var payload RecordExecutionPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	db := database.GetDB()
+
+	historyEntry := database.TestHistory{
+		ID:               "hist_" + uuid.New().String()[:8],
+		WorkspaceID:      payload.WorkspaceID,
+		RequestItemID:    payload.RequestItemID,
+		RequestName:      payload.RequestName,
+		Method:           payload.Method,
+		URL:              payload.URL,
+		StatusCode:       payload.StatusCode,
+		StatusText:       payload.StatusText,
+		LatencyMs:        payload.LatencyMs,
+		ResponseSize:     payload.ResponseSize,
+		ResponseHeaders:  payload.ResponseHeaders,
+		ResponseBody:     payload.ResponseBody,
+		AssertionsPassed: payload.AssertionsPassed,
+		AssertionsTotal:  payload.AssertionsTotal,
+		AssertionDetails: payload.AssertionDetails,
+		ExecutedAt:       time.Now(),
+	}
+	db.Create(&historyEntry)
+
+	// Record Metric Record for Telemetry
+	parsedURL, _ := url.Parse(payload.URL)
+	endpoint := payload.URL
+	if parsedURL != nil && parsedURL.Path != "" {
+		endpoint = parsedURL.Path
+	}
+
+	db.Create(&database.MetricRecord{
+		ID:          "rec_" + uuid.New().String()[:8],
+		WorkspaceID: payload.WorkspaceID,
+		Endpoint:    endpoint,
+		Method:      payload.Method,
+		StatusCode:  payload.StatusCode,
+		LatencyMs:   payload.LatencyMs,
+		IsError:     payload.StatusCode >= 400 || payload.StatusCode == 0,
+		Timestamp:   time.Now(),
+	})
+
+	c.JSON(http.StatusOK, gin.H{"status": "recorded", "historyId": historyEntry.ID})
+}
+

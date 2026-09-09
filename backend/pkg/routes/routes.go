@@ -135,8 +135,9 @@ func RegisterRoutes(router *gin.Engine) {
 			mockGroup.DELETE("/:id", mock.DeleteMockEndpoint)
 		}
 
-		// Test Runner Proxy execution
+		// Test Runner Proxy execution & Browser Direct recording
 		apiV1.POST("/runner/execute", runner.ExecuteRequest)
+		apiV1.POST("/runner/record", runner.RecordExecution)
 
 		// OpenAPI Docs Preview
 		apiV1.POST("/openapi/preview", openapi.ParseAndPreviewOpenAPI)

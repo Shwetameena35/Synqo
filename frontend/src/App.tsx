@@ -16,6 +16,7 @@ import { TeamModal } from './components/Team/TeamModal';
 import { JoinInvitePage } from './components/Team/JoinInvitePage';
 import { api } from './services/api';
 import { realtime, WSMessage } from './services/websocket';
+import { executeBrowserDirect, isLocalUrl } from './services/browserRunner';
 import {
   Workspace,
   CollectionWithTree,
@@ -26,6 +27,7 @@ import {
   ExecuteResponsePayload,
   User,
   WorkspaceMember,
+  VariableItem,
 } from './types';
 
 export function App() {
@@ -316,16 +318,44 @@ export function App() {
     navigate('/login');
   };
 
-  // Handle Execute Request
+  // Handle Execute Request (Supports both Browser Direct for localhost and Cloud Proxy)
   const handleSendRequest = async (payload: any) => {
     if (!currentWorkspace) return;
     setIsLoading(true);
     try {
-      const res = await api.executeRequest({
-        ...payload,
-        workspaceId: currentWorkspace.id,
-        environmentId: currentEnvironment?.id,
-      });
+      // Determine active environment variables
+      let activeVariables: VariableItem[] = [];
+      if (currentEnvironment?.variables) {
+        try {
+          activeVariables = JSON.parse(currentEnvironment.variables);
+        } catch {}
+      }
+
+      // Check runner mode
+      const targetUrl = payload.url || '';
+      const mode = payload.runnerMode || 'auto';
+      const shouldUseBrowser =
+        mode === 'browser' ||
+        (mode === 'auto' && isLocalUrl(targetUrl));
+
+      let res: ExecuteResponsePayload;
+      if (shouldUseBrowser) {
+        res = await executeBrowserDirect(
+          {
+            ...payload,
+            workspaceId: currentWorkspace.id,
+            environmentId: currentEnvironment?.id,
+          },
+          activeVariables
+        );
+      } else {
+        res = await api.executeRequest({
+          ...payload,
+          workspaceId: currentWorkspace.id,
+          environmentId: currentEnvironment?.id,
+        });
+      }
+
       setResponse(res);
       // Auto-switch to response tab on mobile so user sees result immediately
       if (typeof window !== 'undefined' && window.innerWidth < 1024) {
