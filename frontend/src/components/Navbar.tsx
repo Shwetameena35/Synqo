@@ -27,7 +27,7 @@ interface NavbarProps {
   onCreateWorkspace: (name: string, description: string) => void;
   environments: Environment[];
   currentEnvironment: Environment | null;
-  onSelectEnvironment: (env: Environment) => void;
+  onSelectEnvironment: (env: Environment | null) => void;
   onOpenEnvModal: () => void;
   onOpenImportModal: () => void;
   onNewRequest: () => void;

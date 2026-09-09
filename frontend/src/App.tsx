@@ -449,7 +449,7 @@ export function App() {
     const newReq: RequestItem = {
       id: `req_temp_${Date.now()}`,
       workspaceId: currentWorkspace.id,
-      collectionId: colId,
+      collectionId: colId || '',
       name: targetCol ? `New ${targetCol.name} Request` : 'New Untitled Request',
       method: 'GET',
       url: '',
