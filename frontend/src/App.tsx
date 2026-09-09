@@ -88,7 +88,9 @@ export function App() {
 
   // Sync route on mount and session state change
   useEffect(() => {
-    if (location.pathname.startsWith('/join/')) {
+    const searchParams = new URLSearchParams(location.search);
+    const joinCodeParam = searchParams.get('join');
+    if (location.pathname.startsWith('/join/') || joinCodeParam) {
       return;
     }
     if (!currentUser && !isDemoMode) {
@@ -100,7 +102,7 @@ export function App() {
         navigate('/collections', { replace: true });
       }
     }
-  }, [currentUser, isDemoMode, location.pathname, navigate]);
+  }, [currentUser, isDemoMode, location.pathname, location.search, navigate]);
 
   // Invitations & Notifications
   const [invitations, setInvitations] = useState<any[]>([]);
@@ -568,9 +570,12 @@ export function App() {
     navigate('/collections');
   };
 
-  // Handle join route
-  const isJoinRoute = location.pathname.startsWith('/join/');
-  const inviteCode = isJoinRoute ? location.pathname.split('/join/')[1] : null;
+  // Handle join route (supports both /join/:code and /?join=:code for SPA static hosts like Render)
+  const searchParams = new URLSearchParams(location.search);
+  const joinQueryCode = searchParams.get('join');
+  const isJoinRoute = location.pathname.startsWith('/join/') || Boolean(joinQueryCode);
+  const rawPathCode = location.pathname.startsWith('/join/') ? location.pathname.split('/join/')[1]?.split('?')[0] : null;
+  const inviteCode = joinQueryCode || rawPathCode;
 
   if (isJoinRoute && inviteCode) {
     return (
