@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Mail, Lock, User as UserIcon, Eye, EyeOff, ArrowRight, Sparkles } from 'lucide-react';
+import { Layers, Mail, Lock, User as UserIcon, Eye, EyeOff, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { User } from '../../types';
 
@@ -16,11 +16,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onExploreDem
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       if (isLogin) {
@@ -30,8 +32,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onExploreDem
         if (!name.trim()) {
           throw new Error('Please enter your full name');
         }
-        const res = await api.register({ name: name.trim(), email, password });
-        onLoginSuccess(res.user, res.token);
+        await api.register({ name: name.trim(), email, password });
+        // Don't auto login: redirect/switch to login tab and prompt user to sign in
+        setIsLogin(true);
+        setPassword('');
+        setName('');
+        setSuccessMessage('Account created successfully! Please enter your password to sign in.');
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please check your credentials.');
@@ -103,6 +109,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onExploreDem
               onClick={() => {
                 setIsLogin(true);
                 setError(null);
+                setSuccessMessage(null);
               }}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
                 isLogin
@@ -117,6 +124,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onExploreDem
               onClick={() => {
                 setIsLogin(false);
                 setError(null);
+                setSuccessMessage(null);
               }}
               className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
                 !isLogin
@@ -127,6 +135,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLoginSuccess, onExploreDem
               Register
             </button>
           </div>
+
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-4 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center space-x-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+              <span>{successMessage}</span>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

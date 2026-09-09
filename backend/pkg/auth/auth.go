@@ -156,48 +156,6 @@ func Register(c *gin.Context) {
 		JoinedAt:    time.Now(),
 	})
 
-	// Add default environment
-	db.Create(&database.Environment{
-		ID:          "env_" + uuid.New().String()[:8],
-		WorkspaceID: defaultWorkspace.ID,
-		Name:        "Development",
-		IsDefault:   true,
-		Variables:   `[{"key": "baseUrl", "value": "http://localhost:8080/api/v1", "isSecret": false, "enabled": true}]`,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	})
-
-	// Add a starter collection with sample request
-	starterCol := database.Collection{
-		ID:          "col_" + uuid.New().String()[:8],
-		WorkspaceID: defaultWorkspace.ID,
-		Name:        "Getting Started",
-		Description: "Sample requests for your new workspace",
-		OrderIndex:  0,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-	db.Create(&starterCol)
-
-	db.Create(&database.RequestItem{
-		ID:           "req_" + uuid.New().String()[:8],
-		WorkspaceID:  defaultWorkspace.ID,
-		CollectionID: starterCol.ID,
-		Name:         "Get Products (Catalog Demo)",
-		Method:       "GET",
-		URL:          "{{baseUrl}}/products",
-		Headers:      `[{"key": "Accept", "value": "application/json", "enabled": true}]`,
-		Params:       `[]`,
-		BodyType:     "none",
-		BodyContent:  "",
-		AuthType:     "none",
-		AuthConfig:   `{}`,
-		Tests:        `[{"type": "status_code", "operator": "equals", "value": "200"}]`,
-		OrderIndex:   0,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	})
-
 	token, err := GenerateToken(newUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})

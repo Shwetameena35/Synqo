@@ -238,13 +238,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setActiveDropdown(activeDropdown === 'environment' ? null : 'environment')}
-              className="flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-xs font-medium text-emerald-400 transition-colors shrink-0 cursor-pointer"
+              className={`flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-xs font-medium transition-colors shrink-0 cursor-pointer ${
+                currentEnvironment ? 'text-emerald-400' : 'text-neutral-400 hover:text-neutral-300'
+              }`}
             >
-              <Globe className="h-3.5 w-3.5" />
+              <Globe className={`h-3.5 w-3.5 ${currentEnvironment ? 'text-emerald-400' : 'text-neutral-500'}`} />
               <span className="max-w-[80px] sm:max-w-[120px] truncate">
-                {currentEnvironment ? currentEnvironment.name : 'No Env'}
+                {currentEnvironment ? currentEnvironment.name : 'No Environment'}
               </span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+              <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
             </button>
             <button
               type="button"
@@ -253,17 +255,41 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenEnvModal();
               }}
               title="Manage Environment Variables"
-              className="p-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-slate-400 hover:text-slate-200 shrink-0 cursor-pointer"
+              className="p-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-neutral-200 shrink-0 cursor-pointer"
             >
               <Settings className="h-3.5 w-3.5" />
             </button>
           </div>
 
           {activeDropdown === 'environment' && (
-            <div className="absolute left-0 mt-1.5 w-52 rounded-lg bg-slate-900 border border-slate-800 shadow-2xl p-1.5 z-50">
-              <div className="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">
+            <div className="absolute left-0 mt-1.5 w-52 rounded-lg bg-neutral-900 border border-neutral-800 shadow-2xl p-1.5 z-50">
+              <div className="text-[10px] font-semibold text-neutral-400 px-2 py-1 uppercase tracking-wider">
                 Environments
               </div>
+
+              {/* No Environment option (Postman style) */}
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectEnvironment(null);
+                  closeDropdowns();
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                  !currentEnvironment
+                    ? 'bg-neutral-800 text-white font-semibold'
+                    : 'text-neutral-400 hover:bg-neutral-800/60 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center space-x-2 min-w-0">
+                  {!currentEnvironment ? (
+                    <Check className="h-3.5 w-3.5 text-[#FF6C37] shrink-0" />
+                  ) : (
+                    <span className="w-3.5 shrink-0" />
+                  )}
+                  <span className="truncate">No Environment</span>
+                </div>
+              </button>
+
               {environments.map((env) => {
                 const isActive = currentEnvironment?.id === env.id;
                 return (
@@ -274,10 +300,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onSelectEnvironment(env);
                       closeDropdowns();
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between cursor-pointer ${isActive
+                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                      isActive
                         ? 'bg-emerald-500/15 text-emerald-400 font-semibold'
-                        : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                      }`}
+                        : 'text-neutral-300 hover:bg-neutral-800/80 hover:text-white'
+                    }`}
                   >
                     <div className="flex items-center space-x-2 min-w-0">
                       {isActive ? (
@@ -288,24 +315,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span className="truncate">{env.name}</span>
                     </div>
                     {env.isDefault && (
-                      <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
+                      <span className="text-[9px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded border border-neutral-700 shrink-0">
                         Default
                       </span>
                     )}
                   </button>
                 );
               })}
-              <div className="pt-1 mt-1 border-t border-slate-800">
+
+              <div className="pt-1 mt-1 border-t border-neutral-800">
                 <button
                   type="button"
                   onClick={() => {
                     closeDropdowns();
                     onOpenEnvModal();
                   }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-md text-xs text-slate-400 hover:text-white hover:bg-slate-800 flex items-center space-x-1.5 cursor-pointer"
+                  className="w-full text-left px-2.5 py-1.5 rounded-md text-xs text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center space-x-1.5 cursor-pointer"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Manage Variables</span>
+                  <Plus className="h-3.5 w-3.5 text-[#FF6C37]" />
+                  <span>Manage Environments</span>
                 </button>
               </div>
             </div>
@@ -440,7 +468,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         <button
           type="button"
-          onClick={onNewRequest}
+          onClick={() => onNewRequest()}
           className="font-game flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 rounded-md bg-[#FF6C37] hover:bg-[#FF5216] text-xs font-black uppercase tracking-wider text-white shadow-md shadow-orange-600/30 transition-all cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
           title="Create New Request"
         >

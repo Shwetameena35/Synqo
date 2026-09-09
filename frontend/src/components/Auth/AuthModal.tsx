@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, UserPlus, Sparkles, X, Lock, Mail, User as UserIcon, ArrowRight } from 'lucide-react';
+import { LogIn, UserPlus, Sparkles, X, Lock, Mail, User as UserIcon, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { User } from '../../types';
 
@@ -16,6 +16,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -23,6 +24,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       if (isLogin) {
@@ -32,11 +34,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
         onLoginSuccess(res.user);
         onClose();
       } else {
-        const res = await api.register({ name, email, password });
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('user', JSON.stringify(res.user));
-        onLoginSuccess(res.user);
-        onClose();
+        await api.register({ name, email, password });
+        setIsLogin(true);
+        setPassword('');
+        setName('');
+        setSuccessMessage('Account created successfully! Please enter your password to sign in.');
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
@@ -128,6 +130,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
             </span>
           </div>
 
+          {successMessage && (
+            <div className="p-2.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center space-x-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
           {error && (
             <div className="p-2.5 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
               {error}
@@ -206,6 +215,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onLoginSu
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError(null);
+                setSuccessMessage(null);
               }}
               className="text-xs text-neutral-400 hover:text-[#FF6C37] transition-colors cursor-pointer"
             >
