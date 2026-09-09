@@ -40,7 +40,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({
     setGeneratingLink(true);
     try {
       const res = await api.createInvite(workspaceId, { role: targetRole });
-      const fullUrl = `${window.location.origin}/join/${res.inviteCode}`;
+      const fullUrl = `${window.location.origin}/?join=${res.inviteCode}`;
       setInviteLink(fullUrl);
     } catch (err: any) {
       console.error('Failed to generate invite link', err);
