@@ -112,11 +112,10 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoad
             </div>
             {response.assertionsTotal > 0 && (
               <div
-                className={`flex items-center space-x-1 px-2 py-0.5 rounded-full font-sans font-semibold text-[11px] whitespace-nowrap ${
-                  response.assertionsPassed === response.assertionsTotal
+                className={`flex items-center space-x-1 px-2 py-0.5 rounded-full font-sans font-semibold text-[11px] whitespace-nowrap ${response.assertionsPassed === response.assertionsTotal
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-amber-500/20 text-amber-400'
-                }`}
+                  }`}
               >
                 <CheckCircle2 className="h-3 w-3" />
                 <span>
@@ -134,33 +133,30 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoad
           <div className="flex items-center space-x-1">
             <button
               onClick={() => setActiveTab('body')}
-              className={`px-3 py-2 border-b-2 font-medium transition-colors ${
-                activeTab === 'body'
+              className={`px-3 py-2 border-b-2 font-medium transition-colors ${activeTab === 'body'
                   ? 'border-[#FF6C37] text-[#FF6C37] font-semibold'
                   : 'border-transparent text-neutral-400 hover:text-neutral-200'
-              }`}
+                }`}
             >
               Body
             </button>
 
             <button
               onClick={() => setActiveTab('headers')}
-              className={`px-3 py-2 border-b-2 font-medium transition-colors ${
-                activeTab === 'headers'
+              className={`px-3 py-2 border-b-2 font-medium transition-colors ${activeTab === 'headers'
                   ? 'border-[#FF6C37] text-[#FF6C37] font-semibold'
                   : 'border-transparent text-neutral-400 hover:text-neutral-200'
-              }`}
+                }`}
             >
               Headers ({Object.keys(response.headers || {}).length})
             </button>
 
             <button
               onClick={() => setActiveTab('tests')}
-              className={`px-3 py-2 border-b-2 font-medium transition-colors flex items-center space-x-1 ${
-                activeTab === 'tests'
+              className={`px-3 py-2 border-b-2 font-medium transition-colors flex items-center space-x-1 ${activeTab === 'tests'
                   ? 'border-[#FF6C37] text-[#FF6C37] font-semibold'
                   : 'border-transparent text-neutral-400 hover:text-neutral-200'
-              }`}
+                }`}
             >
               <span>Test Results</span>
               {response.assertionsTotal > 0 && (
@@ -244,11 +240,10 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoad
                   response.assertionDetails.map((ar, idx) => (
                     <div
                       key={idx}
-                      className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
-                        ar.passed
+                      className={`p-3 rounded-lg border text-xs flex items-center justify-between ${ar.passed
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                           : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center space-x-2.5">
                         {ar.passed ? (
@@ -264,9 +259,8 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoad
                         </div>
                       </div>
                       <span
-                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
-                          ar.passed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
-                        }`}
+                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${ar.passed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                          }`}
                       >
                         {ar.passed ? 'PASS' : 'FAIL'}
                       </span>

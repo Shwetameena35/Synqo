@@ -167,8 +167,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                         closeDropdowns();
                       }}
                       className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${isSelected
-                          ? 'bg-cyan-500/10 text-cyan-400 font-semibold border border-cyan-500/20'
-                          : 'text-slate-300 hover:bg-slate-800/80'
+                        ? 'bg-cyan-500/10 text-cyan-400 font-semibold border border-cyan-500/20'
+                        : 'text-slate-300 hover:bg-slate-800/80'
                         }`}
                     >
                       <div className="flex items-center space-x-2 truncate">
@@ -274,11 +274,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onSelectEnvironment(env);
                       closeDropdowns();
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between cursor-pointer ${
-                      isActive
+                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between cursor-pointer ${isActive
                         ? 'bg-emerald-500/15 text-emerald-400 font-semibold'
                         : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center space-x-2 min-w-0">
                       {isActive ? (
@@ -488,9 +487,8 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <div className="px-2.5 py-1.5 border-t border-neutral-800 flex items-center space-x-2 text-[11px] text-neutral-400">
                 <span
-                  className={`h-2 w-2 rounded-full ${
-                    isConnected ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-amber-400'
-                  }`}
+                  className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-amber-400'
+                    }`}
                 />
                 <span>{isConnected ? 'Sync Active' : 'Connecting...'}</span>
               </div>

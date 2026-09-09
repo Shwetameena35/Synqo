@@ -20,9 +20,14 @@ import {
   RefreshCw,
   Terminal,
   X,
+  Laptop,
+  Cloud,
+  ChevronDown,
+  Zap,
 } from 'lucide-react';
 import { RequestItem, HeaderParamItem, FormDataItem, AssertionRule, RequestComment, ExecuteResponsePayload, Environment, VariableItem } from '../../types';
 import { api } from '../../services/api';
+import { isLocalUrl } from '../../services/browserRunner';
 import { CodeSnippetModal } from './CodeSnippetModal';
 import { CurlImportModal } from './CurlImportModal';
 import { VariableInspectorModal } from './VariableInspectorModal';
@@ -265,6 +270,12 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
+  // Runner Mode: 'auto' | 'browser' | 'cloud'
+  const [runnerMode, setRunnerMode] = useState<'auto' | 'browser' | 'cloud'>(() => {
+    return (localStorage.getItem('preferred_runner_mode') as any) || 'auto';
+  });
+  const [showRunnerMenu, setShowRunnerMenu] = useState(false);
+
   const loadComments = async () => {
     if (!request?.id || request.id.startsWith('req_temp_')) {
       setComments([]);
@@ -418,7 +429,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
     }
   }, [request]);
 
-    const getEffectiveBodyContent = () => {
+  const getEffectiveBodyContent = () => {
     if (bodyType === 'form-data') {
       return JSON.stringify(formDataList);
     }
@@ -453,6 +464,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       authType,
       authConfig,
       tests,
+      runnerMode,
     });
   };
 
@@ -672,20 +684,18 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
           <button
             onClick={() => setActiveTab('comments')}
             title="Team Comments & Issue Discussion"
-            className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded border text-xs transition-colors cursor-pointer shrink-0 ${
-              activeTab === 'comments'
+            className={`flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-2.5 py-1 rounded border text-xs transition-colors cursor-pointer shrink-0 ${activeTab === 'comments'
                 ? 'bg-[#FF6C37]/20 border-[#FF6C37] text-[#FF6C37]'
                 : 'bg-[#262626] hover:bg-[#333333] border-[#383838] text-neutral-300 hover:text-white'
-            }`}
+              }`}
           >
             <MessageSquare className="h-3.5 w-3.5 text-[#FF6C37]" />
             <span className="hidden sm:inline">Comments</span>
             {comments.length > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold leading-none ${
-                comments.some((c) => c.status === 'open')
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold leading-none ${comments.some((c) => c.status === 'open')
                   ? 'bg-rose-500 text-white'
                   : 'bg-emerald-600 text-white'
-              }`}>
+                }`}>
                 {comments.length}
               </span>
             )}
@@ -874,13 +884,122 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             />
           </div>
 
+          {/* Execution Runner Engine Selector (Localhost / Browser Direct vs Cloud Proxy) */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowRunnerMenu(!showRunnerMenu)}
+              className="h-9 px-2 sm:px-2.5 rounded-lg bg-[#141416] hover:bg-[#202024] border border-white/10 hover:border-white/20 flex items-center space-x-1.5 text-xs transition-all cursor-pointer"
+              title="Select Execution Runner: Auto / Browser Direct (for Localhost) / Cloud Proxy"
+            >
+              {runnerMode === 'auto' ? (
+                isLocalUrl(url) ? (
+                  <div className="flex items-center space-x-1.5 text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <Laptop className="h-3.5 w-3.5" />
+                    <span className="hidden xl:inline text-[11px] font-semibold">Localhost (Direct)</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1.5 text-amber-400">
+                    <Zap className="h-3.5 w-3.5" />
+                    <span className="hidden xl:inline text-[11px] font-semibold">Auto Runner</span>
+                  </div>
+                )
+              ) : runnerMode === 'browser' ? (
+                <div className="flex items-center space-x-1.5 text-emerald-400">
+                  <Laptop className="h-3.5 w-3.5" />
+                  <span className="hidden xl:inline text-[11px] font-semibold">Browser Direct</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-1.5 text-sky-400">
+                  <Cloud className="h-3.5 w-3.5" />
+                  <span className="hidden xl:inline text-[11px] font-semibold">Cloud Proxy</span>
+                </div>
+              )}
+              <ChevronDown className={`h-3 w-3 text-neutral-400 transition-transform duration-200 ${showRunnerMenu ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showRunnerMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-72 rounded-xl bg-[#18181b]/98 backdrop-blur-xl border border-white/10 shadow-2xl p-2 z-50 text-xs">
+                <div className="text-[10px] font-bold text-neutral-400 px-2 py-1 uppercase tracking-wider">
+                  Request Runner Engine
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRunnerMode('auto');
+                    localStorage.setItem('preferred_runner_mode', 'auto');
+                    setShowRunnerMenu(false);
+                  }}
+                  className={`w-full text-left p-2 rounded-lg flex items-start space-x-2.5 transition-colors cursor-pointer ${
+                    runnerMode === 'auto'
+                      ? 'bg-[#FF6C37]/15 text-[#FF6C37] font-semibold border border-[#FF6C37]/30'
+                      : 'text-neutral-300 hover:bg-white/[0.06] hover:text-white'
+                  }`}
+                >
+                  <Zap className="h-4 w-4 mt-0.5 shrink-0 text-amber-400" />
+                  <div>
+                    <div className="font-semibold text-xs text-white">Auto Smart (Recommended)</div>
+                    <div className="text-[10px] text-neutral-400 leading-snug">
+                      Runs <code>localhost</code> APIs directly from your browser; runs remote APIs via Cloud Proxy.
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRunnerMode('browser');
+                    localStorage.setItem('preferred_runner_mode', 'browser');
+                    setShowRunnerMenu(false);
+                  }}
+                  className={`w-full text-left p-2 rounded-lg flex items-start space-x-2.5 transition-colors cursor-pointer mt-1 ${
+                    runnerMode === 'browser'
+                      ? 'bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30'
+                      : 'text-neutral-300 hover:bg-white/[0.06] hover:text-white'
+                  }`}
+                >
+                  <Laptop className="h-4 w-4 mt-0.5 shrink-0 text-emerald-400" />
+                  <div>
+                    <div className="font-semibold text-xs text-white">Browser Direct (Localhost)</div>
+                    <div className="text-[10px] text-neutral-400 leading-snug">
+                      Sends directly from your browser. Perfect for testing your local APIs from any deployed site!
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRunnerMode('cloud');
+                    localStorage.setItem('preferred_runner_mode', 'cloud');
+                    setShowRunnerMenu(false);
+                  }}
+                  className={`w-full text-left p-2 rounded-lg flex items-start space-x-2.5 transition-colors cursor-pointer mt-1 ${
+                    runnerMode === 'cloud'
+                      ? 'bg-sky-500/15 text-sky-400 font-semibold border border-sky-500/30'
+                      : 'text-neutral-300 hover:bg-white/[0.06] hover:text-white'
+                  }`}
+                >
+                  <Cloud className="h-4 w-4 mt-0.5 shrink-0 text-sky-400" />
+                  <div>
+                    <div className="font-semibold text-xs text-white">Cloud Proxy (Server)</div>
+                    <div className="text-[10px] text-neutral-400 leading-snug">
+                      Proxies through Synqo backend server (bypasses browser CORS on public APIs).
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Send Button with Keyboard Shortcut Tooltip */}
           <div className="relative group shrink-0">
             <button
               onClick={handleSend}
               disabled={isLoading}
               title="Send Request (Press Enter in URL bar, or Ctrl+Enter anywhere)"
-              className="font-game flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-6 py-2 rounded-lg bg-[#FF6C37] hover:bg-[#FF5216] active:bg-[#E5450B] text-xs font-black uppercase tracking-widest text-white shadow-lg shadow-orange-600/30 disabled:opacity-50 transition-all cursor-pointer active:scale-95 shrink-0"
+              className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-6 h-9 rounded-lg bg-gradient-to-r from-[#FF6C37] via-[#FF5F25] to-[#F14D14] hover:from-[#FF7844] hover:to-[#FF5E20] active:brightness-95 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_2px_10px_rgba(255,108,55,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_16px_rgba(255,108,55,0.42)] disabled:opacity-50 transition-all cursor-pointer active:scale-95 shrink-0"
             >
               {isLoading ? (
                 <>
@@ -990,11 +1109,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       <div className="flex items-center px-2 sm:px-4 border-b border-[#2B2B2B] bg-[#181818] text-xs select-none overflow-x-auto whitespace-nowrap">
         <button
           onClick={() => setActiveTab('params')}
-          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${
-            activeTab === 'params'
+          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${activeTab === 'params'
               ? 'border-[#FF6C37] text-[#FF6C37] font-bold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
+            }`}
         >
           <span>Params</span>
           {Array.isArray(params) && params.filter((p) => p.enabled).length > 0 && (
@@ -1006,11 +1124,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
 
         <button
           onClick={() => setActiveTab('headers')}
-          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${
-            activeTab === 'headers'
+          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${activeTab === 'headers'
               ? 'border-[#FF6C37] text-[#FF6C37] font-bold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
+            }`}
         >
           <span>Headers</span>
           {Array.isArray(headers) && headers.filter((h) => h.enabled).length > 0 && (
@@ -1022,11 +1139,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
 
         <button
           onClick={() => setActiveTab('body')}
-          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${
-            activeTab === 'body'
+          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${activeTab === 'body'
               ? 'border-[#FF6C37] text-[#FF6C37] font-bold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
+            }`}
         >
           <span>Body</span>
           {bodyType !== 'none' && (
@@ -1040,11 +1156,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
 
         <button
           onClick={() => setActiveTab('auth')}
-          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${
-            activeTab === 'auth'
+          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${activeTab === 'auth'
               ? 'border-[#FF6C37] text-[#FF6C37] font-bold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
+            }`}
         >
           <span>Auth</span>
           {authType !== 'none' && <span className="h-1.5 w-1.5 rounded-full bg-[#FF6C37]" />}
@@ -1052,11 +1167,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
 
         <button
           onClick={() => setActiveTab('tests')}
-          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${
-            activeTab === 'tests'
+          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${activeTab === 'tests'
               ? 'border-[#FF6C37] text-[#FF6C37] font-bold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
+            }`}
         >
           <span>Tests</span>
           {tests.length > 0 && (
@@ -1068,20 +1182,18 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
 
         <button
           onClick={() => setActiveTab('comments')}
-          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${
-            activeTab === 'comments'
+          className={`font-game px-3 py-2.5 border-b-2 transition-colors flex items-center space-x-1.5 uppercase text-[11px] tracking-wider cursor-pointer ${activeTab === 'comments'
               ? 'border-[#FF6C37] text-[#FF6C37] font-bold'
               : 'border-transparent text-neutral-400 hover:text-neutral-200'
-          }`}
+            }`}
         >
           <MessageSquare className="h-3.5 w-3.5" />
           <span>Comments</span>
           {comments.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-              comments.some((c) => c.status === 'open')
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${comments.some((c) => c.status === 'open')
                 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                 : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-            }`}>
+              }`}>
               {comments.length}
             </span>
           )}
@@ -1107,71 +1219,71 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             <div className="border border-[#2E2E2E] rounded-lg overflow-x-auto bg-[#1E1E1E]">
               <div className="min-w-[420px]">
                 <div className="grid grid-cols-12 bg-[#141414] px-3 py-1.5 text-[11px] font-semibold text-neutral-400 border-b border-[#2E2E2E]">
-                <div className="col-span-1 text-center">Use</div>
-                <div className="col-span-5">Key</div>
-                <div className="col-span-5">Value</div>
-                <div className="col-span-1 text-right">Action</div>
-              </div>
-
-              {(params || []).length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-500">
-                  No query parameters. Click "Add Param" to configure.
+                  <div className="col-span-1 text-center">Use</div>
+                  <div className="col-span-5">Key</div>
+                  <div className="col-span-5">Value</div>
+                  <div className="col-span-1 text-right">Action</div>
                 </div>
-              ) : (
-                (params || []).map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-12 px-3 py-1.5 items-center border-b border-slate-800/60 text-xs"
-                  >
-                    <div className="col-span-1 text-center">
-                      <input
-                        type="checkbox"
-                        checked={item.enabled}
-                        onChange={(e) => {
-                          const copy = [...params];
-                          copy[idx].enabled = e.target.checked;
-                          setParams(copy);
-                        }}
-                        className="rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0"
-                      />
-                    </div>
-                    <div className="col-span-5 pr-2">
-                      <input
-                        type="text"
-                        placeholder="Key"
-                        value={item.key}
-                        onChange={(e) => {
-                          const copy = [...params];
-                          copy[idx].key = e.target.value;
-                          setParams(copy);
-                        }}
-                        className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
-                      />
-                    </div>
-                    <div className="col-span-5 pr-2">
-                      <input
-                        type="text"
-                        placeholder="Value (or {{var}})"
-                        value={item.value}
-                        onChange={(e) => {
-                          const copy = [...params];
-                          copy[idx].value = e.target.value;
-                          setParams(copy);
-                        }}
-                        className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
-                      />
-                    </div>
-                    <div className="col-span-1 text-right">
-                      <button
-                        onClick={() => setParams(params.filter((_, i) => i !== idx))}
-                        className="text-slate-500 hover:text-rose-400 p-1"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+
+                {(params || []).length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-500">
+                    No query parameters. Click "Add Param" to configure.
                   </div>
-                ))
-              )}
+                ) : (
+                  (params || []).map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-12 px-3 py-1.5 items-center border-b border-slate-800/60 text-xs"
+                    >
+                      <div className="col-span-1 text-center">
+                        <input
+                          type="checkbox"
+                          checked={item.enabled}
+                          onChange={(e) => {
+                            const copy = [...params];
+                            copy[idx].enabled = e.target.checked;
+                            setParams(copy);
+                          }}
+                          className="rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0"
+                        />
+                      </div>
+                      <div className="col-span-5 pr-2">
+                        <input
+                          type="text"
+                          placeholder="Key"
+                          value={item.key}
+                          onChange={(e) => {
+                            const copy = [...params];
+                            copy[idx].key = e.target.value;
+                            setParams(copy);
+                          }}
+                          className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+                      <div className="col-span-5 pr-2">
+                        <input
+                          type="text"
+                          placeholder="Value (or {{var}})"
+                          value={item.value}
+                          onChange={(e) => {
+                            const copy = [...params];
+                            copy[idx].value = e.target.value;
+                            setParams(copy);
+                          }}
+                          className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+                      <div className="col-span-1 text-right">
+                        <button
+                          onClick={() => setParams(params.filter((_, i) => i !== idx))}
+                          className="text-slate-500 hover:text-rose-400 p-1"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1194,71 +1306,71 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             <div className="border border-[#2E2E2E] rounded-lg overflow-x-auto bg-[#1E1E1E]">
               <div className="min-w-[420px]">
                 <div className="grid grid-cols-12 bg-[#141414] px-3 py-1.5 text-[11px] font-semibold text-neutral-400 border-b border-[#2E2E2E]">
-                <div className="col-span-1 text-center">Use</div>
-                <div className="col-span-5">Header Key</div>
-                <div className="col-span-5">Header Value</div>
-                <div className="col-span-1 text-right">Action</div>
-              </div>
-
-              {(headers || []).length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-500">
-                  No custom headers configured.
+                  <div className="col-span-1 text-center">Use</div>
+                  <div className="col-span-5">Header Key</div>
+                  <div className="col-span-5">Header Value</div>
+                  <div className="col-span-1 text-right">Action</div>
                 </div>
-              ) : (
-                (headers || []).map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-12 px-3 py-1.5 items-center border-b border-slate-800/60 text-xs"
-                  >
-                    <div className="col-span-1 text-center">
-                      <input
-                        type="checkbox"
-                        checked={item.enabled}
-                        onChange={(e) => {
-                          const copy = [...headers];
-                          copy[idx].enabled = e.target.checked;
-                          setHeaders(copy);
-                        }}
-                        className="rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0"
-                      />
-                    </div>
-                    <div className="col-span-5 pr-2">
-                      <input
-                        type="text"
-                        placeholder="Content-Type"
-                        value={item.key}
-                        onChange={(e) => {
-                          const copy = [...headers];
-                          copy[idx].key = e.target.value;
-                          setHeaders(copy);
-                        }}
-                        className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
-                      />
-                    </div>
-                    <div className="col-span-5 pr-2">
-                      <input
-                        type="text"
-                        placeholder="application/json"
-                        value={item.value}
-                        onChange={(e) => {
-                          const copy = [...headers];
-                          copy[idx].value = e.target.value;
-                          setHeaders(copy);
-                        }}
-                        className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
-                      />
-                    </div>
-                    <div className="col-span-1 text-right">
-                      <button
-                        onClick={() => setHeaders(headers.filter((_, i) => i !== idx))}
-                        className="text-slate-500 hover:text-rose-400 p-1"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+
+                {(headers || []).length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-500">
+                    No custom headers configured.
                   </div>
-                ))
-              )}
+                ) : (
+                  (headers || []).map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-12 px-3 py-1.5 items-center border-b border-slate-800/60 text-xs"
+                    >
+                      <div className="col-span-1 text-center">
+                        <input
+                          type="checkbox"
+                          checked={item.enabled}
+                          onChange={(e) => {
+                            const copy = [...headers];
+                            copy[idx].enabled = e.target.checked;
+                            setHeaders(copy);
+                          }}
+                          className="rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-0"
+                        />
+                      </div>
+                      <div className="col-span-5 pr-2">
+                        <input
+                          type="text"
+                          placeholder="Content-Type"
+                          value={item.key}
+                          onChange={(e) => {
+                            const copy = [...headers];
+                            copy[idx].key = e.target.value;
+                            setHeaders(copy);
+                          }}
+                          className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+                      <div className="col-span-5 pr-2">
+                        <input
+                          type="text"
+                          placeholder="application/json"
+                          value={item.value}
+                          onChange={(e) => {
+                            const copy = [...headers];
+                            copy[idx].value = e.target.value;
+                            setHeaders(copy);
+                          }}
+                          className="w-full px-2 py-1 rounded bg-slate-950 border border-slate-800 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyan-500"
+                        />
+                      </div>
+                      <div className="col-span-1 text-right">
+                        <button
+                          onClick={() => setHeaders(headers.filter((_, i) => i !== idx))}
+                          className="text-slate-500 hover:text-rose-400 p-1"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1326,13 +1438,12 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                   <button
                     onClick={formatJSONBody}
                     disabled={!bodyContent.trim()}
-                    className={`flex items-center space-x-1 px-2.5 py-1 rounded border text-xs transition-all cursor-pointer ${
-                      prettifyStatus === 'success' || prettifyStatus === 'repaired'
+                    className={`flex items-center space-x-1 px-2.5 py-1 rounded border text-xs transition-all cursor-pointer ${prettifyStatus === 'success' || prettifyStatus === 'repaired'
                         ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
                         : prettifyStatus === 'error'
-                        ? 'bg-rose-500/20 border-rose-500/50 text-rose-300'
-                        : 'bg-[#262626] border-[#383838] hover:border-[#444] text-[#FF6C37] disabled:opacity-40 disabled:cursor-not-allowed'
-                    }`}
+                          ? 'bg-rose-500/20 border-rose-500/50 text-rose-300'
+                          : 'bg-[#262626] border-[#383838] hover:border-[#444] text-[#FF6C37] disabled:opacity-40 disabled:cursor-not-allowed'
+                      }`}
                     title="Prettify and auto-fix JSON syntax"
                   >
                     {prettifyStatus === 'success' ? (
@@ -1578,11 +1689,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                   textUnderlineOffset: '4px',
                   textDecorationThickness: '1.5px',
                 }}
-                className={`w-full p-3 rounded-lg bg-[#141414] border text-xs font-mono text-neutral-200 placeholder-neutral-500 focus:outline-none shadow-inner leading-relaxed transition-colors ${
-                  bodyType === 'json' && jsonError
+                className={`w-full p-3 rounded-lg bg-[#141414] border text-xs font-mono text-neutral-200 placeholder-neutral-500 focus:outline-none shadow-inner leading-relaxed transition-colors ${bodyType === 'json' && jsonError
                     ? 'border-rose-500/50 focus:border-rose-500'
                     : 'border-[#2E2E2E] focus:border-[#FF6C37]'
-                }`}
+                  }`}
               />
             )}
 
@@ -1888,11 +1998,10 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                 comments.map((comment) => (
                   <div
                     key={comment.id}
-                    className={`p-3.5 rounded-lg border transition-all ${
-                      comment.status === 'resolved'
+                    className={`p-3.5 rounded-lg border transition-all ${comment.status === 'resolved'
                         ? 'bg-[#151515] border-[#262626] opacity-80 hover:opacity-100'
                         : 'bg-[#1a1a1a] border-[#333333]'
-                    }`}
+                      }`}
                   >
                     {/* Comment Header */}
                     <div className="flex items-center justify-between gap-2">
