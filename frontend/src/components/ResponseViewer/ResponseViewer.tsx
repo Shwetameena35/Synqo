@@ -10,17 +10,19 @@ import {
   Activity,
   Layers,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import { ExecuteResponsePayload } from '../../types';
 
 interface ResponseViewerProps {
   response: ExecuteResponsePayload | null;
   isLoading: boolean;
+  onOpenDocModal?: () => void;
 }
 
 type TabType = 'body' | 'headers' | 'tests';
 
-export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoading }) => {
+export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoading, onOpenDocModal }) => {
   const [activeTab, setActiveTab] = useState<TabType>('body');
   const [copied, setCopied] = useState(false);
 
@@ -182,6 +184,16 @@ export const ResponseViewer: React.FC<ResponseViewerProps> = ({ response, isLoad
             >
               <Download className="h-3.5 w-3.5" />
             </button>
+            {onOpenDocModal && (
+              <button
+                onClick={onOpenDocModal}
+                title="Attach this response to API Documentation"
+                className="flex items-center space-x-1 px-2 py-1 rounded bg-[#FF6C37]/15 hover:bg-[#FF6C37]/25 text-[#FF6C37] text-[11px] font-bold border border-[#FF6C37]/30 transition-all cursor-pointer ml-1"
+              >
+                <BookOpen className="h-3 w-3" />
+                <span className="hidden sm:inline">Add to Doc</span>
+              </button>
+            )}
           </div>
         </div>
       )}

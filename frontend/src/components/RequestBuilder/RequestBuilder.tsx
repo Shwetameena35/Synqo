@@ -24,13 +24,15 @@ import {
   Cloud,
   ChevronDown,
   Zap,
+  BookOpen,
 } from 'lucide-react';
-import { RequestItem, HeaderParamItem, FormDataItem, AssertionRule, RequestComment, ExecuteResponsePayload, Environment, VariableItem } from '../../types';
+import { RequestItem, HeaderParamItem, FormDataItem, AssertionRule, RequestComment, ExecuteResponsePayload, Environment, VariableItem, DocMetadata } from '../../types';
 import { api } from '../../services/api';
 import { isLocalUrl } from '../../services/browserRunner';
 import { CodeSnippetModal } from './CodeSnippetModal';
 import { CurlImportModal } from './CurlImportModal';
 import { VariableInspectorModal } from './VariableInspectorModal';
+import { ApiDocModal } from './ApiDocModal';
 import { parseCurl, ParsedCurl } from '../../utils/curlParser';
 
 function getVariableAtPosition(text: string, position: number): string | null {
@@ -129,6 +131,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('params');
   const [showSnippetModal, setShowSnippetModal] = useState(false);
   const [showCurlModal, setShowCurlModal] = useState(false);
+  const [showDocModal, setShowDocModal] = useState(false);
   const [curlImportToast, setCurlImportToast] = useState<string | null>(null);
   const [inspectingVariable, setInspectingVariable] = useState<string | null>(null);
 
@@ -524,6 +527,7 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
         authType,
         authConfig: JSON.stringify(authConfig),
         tests: JSON.stringify(tests),
+        docsMetadata: request?.docsMetadata,
       });
       setSaveStatus('saved');
       setTimeout(() => {
@@ -537,6 +541,44 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
       }, 3000);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveDocMetadata = async (docMetadata: DocMetadata) => {
+    const docStr = JSON.stringify(docMetadata);
+    onDraftChange?.({ docsMetadata: docStr });
+    if (request?.id && !request.id.startsWith('req_temp_')) {
+      const targetColId =
+        request.collectionId && typeof request.collectionId === 'string'
+          ? request.collectionId
+          : (collections && collections.length > 0 && typeof collections[0]?.id === 'string' ? collections[0].id : undefined);
+
+      const authCfg: any = {};
+      if (authType === 'bearer') authCfg.token = authToken;
+      if (authType === 'basic') {
+        authCfg.username = basicUser;
+        authCfg.password = basicPass;
+      }
+      if (authType === 'apikey') {
+        authCfg.key = apiKeyName;
+        authCfg.value = apiKeyValue;
+      }
+
+      await onSave({
+        id: request.id,
+        collectionId: targetColId,
+        name,
+        method,
+        url,
+        headers: JSON.stringify(headers),
+        params: JSON.stringify(params),
+        bodyType,
+        bodyContent: getEffectiveBodyContent(),
+        authType,
+        authConfig: JSON.stringify(authCfg),
+        tests: JSON.stringify(tests),
+        docsMetadata: docStr,
+      });
     }
   };
 
@@ -738,13 +780,13 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
           </button>
 
           <button
-            onClick={() => setShowSnippetModal(true)}
-            title="Generate code snippet in cURL, JavaScript, Python, Go, or Java"
+            onClick={() => setShowDocModal(true)}
+            title="Generate clean API Documentation with payload table, mandatory flags, and response examples"
             className="flex items-center space-x-1 px-1.5 sm:px-2.5 py-1 rounded bg-[#262626] hover:bg-[#333333] border border-[#383838] text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
           >
-            <FileCode className="h-3.5 w-3.5 text-[#FF6C37]" />
-            <span className="hidden md:inline">Generate Code</span>
-            <span className="md:hidden hidden xs:inline">Code</span>
+            <BookOpen className="h-3.5 w-3.5 text-[#FF6C37]" />
+            <span className="hidden md:inline">Generate Doc</span>
+            <span className="md:hidden hidden xs:inline">Doc</span>
           </button>
 
           {/* Save Button with Dynamic Visual Feedback */}
@@ -1019,12 +1061,12 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             )}
           </div>
 
-          {/* Send Button with Keyboard Shortcut Tooltip */}
-          <div className="relative group shrink-0">
+          {/* Send Button */}
+          <div className="shrink-0">
             <button
               onClick={handleSend}
               disabled={isLoading}
-              title="Send Request (Press Enter in URL bar, or Ctrl+Enter anywhere)"
+              title="Send Request (Ctrl+Enter)"
               className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-6 h-9 rounded-lg bg-gradient-to-r from-[#FF6C37] via-[#FF5F25] to-[#F14D14] hover:from-[#FF7844] hover:to-[#FF5E20] active:brightness-95 text-xs font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_2px_10px_rgba(255,108,55,0.3)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_16px_rgba(255,108,55,0.42)] disabled:opacity-50 transition-all cursor-pointer active:scale-95 shrink-0"
             >
               {isLoading ? (
@@ -1039,24 +1081,6 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
                 </>
               )}
             </button>
-
-            {/* Rich Hover Shortcut Tooltip */}
-            <div className="absolute top-full right-0 mt-2 z-50 hidden group-hover:flex flex-col items-end pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95">
-              <div className="bg-[#181818] border border-[#383838] shadow-2xl rounded-lg p-2.5 text-[11px] text-neutral-200 whitespace-nowrap flex flex-col gap-1.5 backdrop-blur-md">
-                <div className="flex items-center gap-1.5 font-semibold text-white">
-                  <Send className="h-3 w-3 text-[#FF6C37]" />
-                  <span>Send Request Shortcuts</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 text-[10px] text-neutral-400">
-                  <span>URL Bar:</span>
-                  <kbd className="px-1.5 py-0.5 rounded bg-[#262626] border border-[#444] text-neutral-100 font-mono font-bold shadow-xs">↵ Enter</kbd>
-                </div>
-                <div className="flex items-center justify-between gap-3 text-[10px] text-neutral-400">
-                  <span>Anywhere:</span>
-                  <kbd className="px-1.5 py-0.5 rounded bg-[#262626] border border-[#444] text-[#FF6C37] font-mono font-bold shadow-xs">Ctrl + Enter</kbd>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1224,6 +1248,19 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
             </span>
           )}
         </button>
+
+        {/* Code Snippet Button placed gracefully on the right of tabs */}
+        <div className="ml-auto flex items-center pr-1 sm:pr-2 py-1 shrink-0">
+          <button
+            onClick={() => setShowSnippetModal(true)}
+            title="Generate code snippet in cURL, JavaScript, Python, Go, or Java"
+            className="flex items-center space-x-1.5 px-2 sm:px-2.5 py-1 rounded bg-[#222222] hover:bg-[#2C2C2C] border border-[#383838] text-xs font-semibold text-neutral-300 hover:text-white transition-all cursor-pointer shadow-xs active:scale-95"
+          >
+            <FileCode className="h-3.5 w-3.5 text-[#FF6C37]" />
+            <span className="hidden sm:inline">Code Snippet</span>
+            <span className="sm:hidden">&lt;/&gt;</span>
+          </button>
+        </div>
       </div>
 
       {/* Tab Panels */}
@@ -2210,6 +2247,27 @@ export const RequestBuilder: React.FC<RequestBuilderProps> = ({
         currentEnvironment={currentEnvironment}
         onEnvironmentUpdated={onEnvironmentUpdated}
         onOpenEnvModal={onOpenEnvModal}
+      />
+
+      {/* Smart 1-Click API Documentation Generator Modal */}
+      <ApiDocModal
+        isOpen={showDocModal}
+        onClose={() => setShowDocModal(false)}
+        request={{
+          ...request,
+          id: request?.id,
+          name: request?.name || name || 'Untitled Request',
+          method,
+          url,
+          bodyType,
+          bodyContent: getEffectiveBodyContent(),
+          headers: JSON.stringify(headers),
+          params: JSON.stringify(params),
+          authType,
+          docsMetadata: request?.docsMetadata,
+        }}
+        activeResponse={response}
+        onSaveDoc={handleSaveDocMetadata}
       />
     </div>
   );
