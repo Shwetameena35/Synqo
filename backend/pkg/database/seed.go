@@ -23,8 +23,8 @@ func SeedDemoData(db *gorm.DB) {
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	demoUser := User{
 		ID:           "usr_demo_1",
-		Name:         "Palak Sharma",
-		Email:        "palak@apihub.dev",
+		Name:         "Demo Admin",
+		Email:        "demo@apihub.dev",
 		PasswordHash: string(hashedPassword),
 		Role:         "admin",
 		CreatedAt:    time.Now(),
@@ -193,7 +193,7 @@ func SeedDemoData(db *gorm.DB) {
 		Headers:      `[{"key": "Content-Type", "value": "application/json", "enabled": true}]`,
 		Params:       `[]`,
 		BodyType:     "json",
-		BodyContent:  `{\n  "email": "palak@apihub.dev",\n  "password": "password123"\n}`,
+		BodyContent:  `{\n  "email": "demo@apihub.dev",\n  "password": "password123"\n}`,
 		AuthType:     "none",
 		AuthConfig:   `{}`,
 		Tests:        `[{"type": "status_code", "operator": "equals", "value": "200"}]`,
@@ -236,10 +236,10 @@ func SeedDemoData(db *gorm.DB) {
 		ResponseBody: `[
   {
     "id": 1,
-    "name": "Palak Sharma",
-    "email": "palak@apihub.dev",
+    "name": "Demo Admin",
+    "email": "demo@apihub.dev",
     "role": "Lead Architect",
-    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Palak"
+    "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=Demo"
   },
   {
     "id": 2,

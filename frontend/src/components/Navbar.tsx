@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layers,
   Globe,
@@ -12,6 +12,9 @@ import {
   Bell,
   Check,
   UserPlus,
+  Menu,
+  X,
+  MoreVertical,
 } from 'lucide-react';
 import { Workspace, Environment } from '../types';
 
@@ -24,7 +27,7 @@ interface NavbarProps {
   onCreateWorkspace: (name: string, description: string) => void;
   environments: Environment[];
   currentEnvironment: Environment | null;
-  onSelectEnvironment: (env: Environment) => void;
+  onSelectEnvironment: (env: Environment | null) => void;
   onOpenEnvModal: () => void;
   onOpenImportModal: () => void;
   onNewRequest: () => void;
@@ -37,6 +40,8 @@ interface NavbarProps {
   membersCount: number;
   invitations?: any[];
   onAcceptInvite?: (inviteCode: string) => void;
+  isMobileSidebarOpen?: boolean;
+  onToggleMobileSidebar?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -59,13 +64,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   membersCount,
   invitations = [],
   onAcceptInvite,
+  isMobileSidebarOpen,
+  onToggleMobileSidebar,
 }) => {
-  const [showWsDropdown, setShowWsDropdown] = useState(false);
-  const [showEnvDropdown, setShowEnvDropdown] = useState(false);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<'workspace' | 'environment' | 'notifications' | 'user' | 'more' | null>(null);
   const [newWsName, setNewWsName] = useState('');
   const [showNewWsModal, setShowNewWsModal] = useState(false);
+
+  const closeDropdowns = () => setActiveDropdown(null);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveDropdown(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleCreateWs = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,21 +93,42 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="h-14 bg-[#181818] border-b border-[#2B2B2B] px-2.5 sm:px-4 flex items-center justify-between select-none z-30 min-w-0">
-      {/* Left: Brand & Workspace Switcher */}
-      <div className="flex items-center space-x-2 sm:space-x-3 shrink-0 min-w-0">
-        <div className="flex items-center space-x-2 shrink-0">
+    <header className="h-14 bg-[#181818] border-b border-[#2B2B2B] px-2 sm:px-4 flex items-center justify-between select-none z-30 min-w-0 relative">
+      {/* Global Transparent Backdrop to dismiss dropdowns on clicking anywhere on screen */}
+      {activeDropdown !== null && (
+        <div
+          className="fixed inset-0 z-40 bg-transparent"
+          onClick={closeDropdowns}
+        />
+      )}
+      {/* Left: Mobile Hamburger & Brand & Workspace Switcher */}
+      <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0 min-w-0">
+        {/* Mobile Hamburger Drawer Toggle (visible on < lg screens) */}
+        <button
+          type="button"
+          onClick={onToggleMobileSidebar}
+          className="lg:hidden p-1.5 sm:p-2 rounded-lg bg-[#222] hover:bg-[#2B2B2B] text-neutral-300 hover:text-white border border-[#333] transition-colors cursor-pointer shrink-0"
+          title={isMobileSidebarOpen ? 'Close Menu' : 'Open Menu'}
+          aria-label="Toggle navigation menu"
+        >
+          {isMobileSidebarOpen ? (
+            <X className="h-4 w-4 text-[#FF6C37]" />
+          ) : (
+            <Menu className="h-4 w-4 text-neutral-200" />
+          )}
+        </button>
+
+        <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-[#FF6C37] via-[#FF5216] to-[#E5450B] flex items-center justify-center shadow-lg shadow-orange-500/30 shrink-0">
-            <Layers className="h-5 w-5 text-white" />
+            <Layers className="h-4.5 w-4.5 text-white" />
           </div>
           <div>
-            <div className="font-game text-xs sm:text-sm font-black tracking-wider text-white flex items-center space-x-1.5">
+            <div className="font-game text-xs sm:text-sm font-black tracking-wider text-white flex items-center space-x-1">
               <span>SYNQO</span>
-              <span className="font-game text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-[#FF6C37]/15 text-[#FF6C37] border border-[#FF6C37]/30 tracking-widest">
+              <span className="font-game text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-[#FF6C37]/15 text-[#FF6C37] border border-[#FF6C37]/30 tracking-widest hidden sm:inline">
                 PRO
               </span>
             </div>
-            {/* <div className="hidden 2xl:block text-[11px] text-neutral-400 font-semibold tracking-wide">API Development, Mocking & Collaboration</div> */}
           </div>
         </div>
 
@@ -99,17 +137,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Team Workspace Dropdown */}
         <div className="relative shrink-0">
           <button
-            onClick={() => setShowWsDropdown(!showWsDropdown)}
-            className="flex items-center space-x-1.5 sm:space-x-2 px-2 sm:px-2.5 py-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer shrink-0"
+            type="button"
+            onClick={() => setActiveDropdown(activeDropdown === 'workspace' ? null : 'workspace')}
+            className="flex items-center space-x-1 sm:space-x-2 px-1.5 sm:px-2.5 py-1.5 rounded-md bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer shrink-0"
           >
             <Users className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
-            <span className="max-w-[100px] sm:max-w-[130px] md:max-w-[160px] truncate">
+            <span className="max-w-[70px] xs:max-w-[100px] sm:max-w-[130px] md:max-w-[160px] truncate">
               {currentWorkspace?.name || 'Select Team'}
             </span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+            <ChevronDown className="h-3 w-3 text-slate-400 shrink-0" />
           </button>
 
-          {showWsDropdown && (
+          {activeDropdown === 'workspace' && (
             <div className="absolute left-0 mt-1.5 w-72 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-2 z-50">
               <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-wider">
                 Select Team Workspace
@@ -122,13 +161,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   return (
                     <button
                       key={ws.id}
+                      type="button"
                       onClick={() => {
                         onSelectWorkspace(ws);
-                        setShowWsDropdown(false);
+                        closeDropdowns();
                       }}
                       className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-colors flex items-center justify-between cursor-pointer ${isSelected
-                          ? 'bg-cyan-500/10 text-cyan-400 font-semibold border border-cyan-500/20'
-                          : 'text-slate-300 hover:bg-slate-800/80'
+                        ? 'bg-cyan-500/10 text-cyan-400 font-semibold border border-cyan-500/20'
+                        : 'text-slate-300 hover:bg-slate-800/80'
                         }`}
                     >
                       <div className="flex items-center space-x-2 truncate">
@@ -155,8 +195,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
               <div className="pt-2 mt-1 border-t border-slate-800">
                 <button
+                  type="button"
                   onClick={() => {
-                    setShowWsDropdown(false);
+                    closeDropdowns();
                     if (!currentUser) {
                       onOpenAuthModal();
                     } else {
@@ -195,57 +236,104 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="relative">
           <div className="flex items-center space-x-1">
             <button
-              onClick={() => setShowEnvDropdown(!showEnvDropdown)}
-              className="flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-xs font-medium text-emerald-400 transition-colors shrink-0"
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === 'environment' ? null : 'environment')}
+              className={`flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-xs font-medium transition-colors shrink-0 cursor-pointer ${
+                currentEnvironment ? 'text-emerald-400' : 'text-neutral-400 hover:text-neutral-300'
+              }`}
             >
-              <Globe className="h-3.5 w-3.5" />
+              <Globe className={`h-3.5 w-3.5 ${currentEnvironment ? 'text-emerald-400' : 'text-neutral-500'}`} />
               <span className="max-w-[80px] sm:max-w-[120px] truncate">
-                {currentEnvironment ? currentEnvironment.name : 'No Env'}
+                {currentEnvironment ? currentEnvironment.name : 'No Environment'}
               </span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+              <ChevronDown className="h-3.5 w-3.5 text-neutral-400" />
             </button>
             <button
-              onClick={onOpenEnvModal}
+              type="button"
+              onClick={() => {
+                closeDropdowns();
+                onOpenEnvModal();
+              }}
               title="Manage Environment Variables"
-              className="p-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-slate-400 hover:text-slate-200 shrink-0"
+              className="p-1.5 rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-neutral-200 shrink-0 cursor-pointer"
             >
               <Settings className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          {showEnvDropdown && (
-            <div className="absolute left-0 mt-1.5 w-52 rounded-lg bg-slate-900 border border-slate-800 shadow-xl p-1.5 z-50">
-              <div className="text-[10px] font-semibold text-slate-400 px-2 py-1 uppercase tracking-wider">
+          {activeDropdown === 'environment' && (
+            <div className="absolute left-0 mt-1.5 w-52 rounded-lg bg-neutral-900 border border-neutral-800 shadow-2xl p-1.5 z-50">
+              <div className="text-[10px] font-semibold text-neutral-400 px-2 py-1 uppercase tracking-wider">
                 Environments
               </div>
-              {environments.map((env) => (
-                <button
-                  key={env.id}
-                  onClick={() => {
-                    onSelectEnvironment(env);
-                    setShowEnvDropdown(false);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between ${currentEnvironment?.id === env.id
-                      ? 'bg-emerald-500/10 text-emerald-400 font-medium'
-                      : 'text-slate-300 hover:bg-slate-800'
-                    }`}
-                >
-                  <span>{env.name}</span>
-                  {env.isDefault && (
-                    <span className="text-[9px] bg-slate-800 text-slate-400 px-1 rounded">Default</span>
+
+              {/* No Environment option (Postman style) */}
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectEnvironment(null);
+                  closeDropdowns();
+                }}
+                className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                  !currentEnvironment
+                    ? 'bg-neutral-800 text-white font-semibold'
+                    : 'text-neutral-400 hover:bg-neutral-800/60 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center space-x-2 min-w-0">
+                  {!currentEnvironment ? (
+                    <Check className="h-3.5 w-3.5 text-[#FF6C37] shrink-0" />
+                  ) : (
+                    <span className="w-3.5 shrink-0" />
                   )}
-                </button>
-              ))}
-              <div className="pt-1 mt-1 border-t border-slate-800">
+                  <span className="truncate">No Environment</span>
+                </div>
+              </button>
+
+              {environments.map((env) => {
+                const isActive = currentEnvironment?.id === env.id;
+                return (
+                  <button
+                    key={env.id}
+                    type="button"
+                    onClick={() => {
+                      onSelectEnvironment(env);
+                      closeDropdowns();
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition-colors flex items-center justify-between cursor-pointer ${
+                      isActive
+                        ? 'bg-emerald-500/15 text-emerald-400 font-semibold'
+                        : 'text-neutral-300 hover:bg-neutral-800/80 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 min-w-0">
+                      {isActive ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <span className="w-3.5 shrink-0" />
+                      )}
+                      <span className="truncate">{env.name}</span>
+                    </div>
+                    {env.isDefault && (
+                      <span className="text-[9px] bg-neutral-800 text-neutral-400 px-1.5 py-0.5 rounded border border-neutral-700 shrink-0">
+                        Default
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+
+              <div className="pt-1 mt-1 border-t border-neutral-800">
                 <button
+                  type="button"
                   onClick={() => {
-                    setShowEnvDropdown(false);
+                    closeDropdowns();
                     onOpenEnvModal();
                   }}
-                  className="w-full text-left px-2.5 py-1.5 rounded-md text-xs text-slate-400 hover:text-white hover:bg-slate-800 flex items-center space-x-1.5"
+                  className="w-full text-left px-2.5 py-1.5 rounded-md text-xs text-neutral-400 hover:text-white hover:bg-neutral-800/80 flex items-center space-x-1.5 cursor-pointer"
                 >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Manage Variables</span>
+                  <Plus className="h-3.5 w-3.5 text-[#FF6C37]" />
+                  <span>Manage Environments</span>
                 </button>
               </div>
             </div>
@@ -285,10 +373,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </div>
 
-        {/* Team Members Button */}
+        {/* Team Members Button (desktop/tablet) */}
         <button
           onClick={onOpenTeamModal}
-          className="flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-medium text-neutral-300 transition-colors cursor-pointer shrink-0"
+          className="hidden md:flex items-center space-x-1.5 px-2 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-medium text-neutral-300 transition-colors cursor-pointer shrink-0"
           title="Manage Workspace Team"
         >
           <Users className="h-3.5 w-3.5 text-purple-400" />
@@ -301,8 +389,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Notifications Bell */}
         <div className="relative">
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            type="button"
+            onClick={() => setActiveDropdown(activeDropdown === 'notifications' ? null : 'notifications')}
+            className="relative p-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer shrink-0"
             title="Workspace Invitations & Alerts"
           >
             <Bell className="h-3.5 w-3.5" />
@@ -313,7 +402,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {showNotifications && (
+          {activeDropdown === 'notifications' && (
             <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-3 z-50 space-y-2">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
                 <span className="text-xs font-bold text-white flex items-center space-x-1.5">
@@ -342,8 +431,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </div>
                       </div>
                       <button
+                        type="button"
                         onClick={() => {
-                          setShowNotifications(false);
+                          closeDropdowns();
                           onAcceptInvite && onAcceptInvite(inv.inviteCode);
                         }}
                         className="w-full py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-sm"
@@ -366,8 +456,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Buttons */}
         <button
+          type="button"
           onClick={onOpenImportModal}
-          className="flex items-center space-x-1 px-2.5 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-medium text-neutral-200 transition-colors cursor-pointer shrink-0"
+          className="hidden md:flex items-center space-x-1 px-2.5 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-xs font-medium text-neutral-200 transition-colors cursor-pointer shrink-0"
           title="Import OpenAPI / Swagger Spec"
         >
           <FileCode2 className="h-3.5 w-3.5 text-[#FF6C37]" />
@@ -376,18 +467,69 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         <button
-          onClick={onNewRequest}
-          className="font-game flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-[#FF6C37] hover:bg-[#FF5216] text-xs font-black uppercase tracking-wider text-white shadow-md shadow-orange-600/30 transition-all cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
+          type="button"
+          onClick={() => onNewRequest()}
+          className="font-game flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 rounded-md bg-[#FF6C37] hover:bg-[#FF5216] text-xs font-black uppercase tracking-wider text-white shadow-md shadow-orange-600/30 transition-all cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
+          title="Create New Request"
         >
           <Plus className="h-3.5 w-3.5 shrink-0" />
-          <span>New Request</span>
+          <span className="hidden sm:inline">New Request</span>
         </button>
+
+        {/* Mobile More Options Dropdown (visible on < md screens) */}
+        <div className="relative md:hidden shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveDropdown(activeDropdown === 'more' ? null : 'more')}
+            className="p-2 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer shrink-0"
+            title="More Options"
+          >
+            <MoreVertical className="h-3.5 w-3.5" />
+          </button>
+
+          {activeDropdown === 'more' && (
+            <div className="absolute right-0 mt-2 w-52 rounded-xl bg-[#1C1C1C] border border-[#333] shadow-2xl p-2 z-50 space-y-1 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  closeDropdowns();
+                  onOpenImportModal();
+                }}
+                className="w-full text-left px-2.5 py-2 rounded-lg text-neutral-200 hover:bg-neutral-800 flex items-center space-x-2 transition-colors cursor-pointer"
+              >
+                <FileCode2 className="h-3.5 w-3.5 text-[#FF6C37]" />
+                <span>Import OpenAPI</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  closeDropdowns();
+                  onOpenTeamModal();
+                }}
+                className="w-full text-left px-2.5 py-2 rounded-lg text-neutral-200 hover:bg-neutral-800 flex items-center space-x-2 transition-colors cursor-pointer"
+              >
+                <Users className="h-3.5 w-3.5 text-purple-400" />
+                <span>Team Members ({membersCount})</span>
+              </button>
+
+              <div className="px-2.5 py-1.5 border-t border-neutral-800 flex items-center space-x-2 text-[11px] text-neutral-400">
+                <span
+                  className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400 shadow-sm shadow-emerald-400' : 'bg-amber-400'
+                    }`}
+                />
+                <span>{isConnected ? 'Sync Active' : 'Connecting...'}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* User Account / Auth Dropdown */}
         <div className="relative shrink-0">
           {currentUser ? (
             <button
-              onClick={() => setShowUserDropdown(!showUserDropdown)}
+              type="button"
+              onClick={() => setActiveDropdown(activeDropdown === 'user' ? null : 'user')}
               className="flex items-center space-x-2 pl-1 pr-2 py-1 rounded-full bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-xs text-neutral-200 transition-colors cursor-pointer shrink-0"
             >
               <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-[#FF6C37] to-amber-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm shrink-0">
@@ -398,6 +540,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           ) : (
             <button
+              type="button"
               onClick={onOpenAuthModal}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-cyan-400 transition-colors cursor-pointer"
             >
@@ -405,7 +548,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {showUserDropdown && currentUser && (
+          {activeDropdown === 'user' && currentUser && (
             <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl p-2 z-50">
               <div className="px-2 py-2 border-b border-slate-800 mb-1">
                 <div className="text-xs font-bold text-white">{currentUser.name}</div>
@@ -418,8 +561,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               <button
+                type="button"
                 onClick={() => {
-                  setShowUserDropdown(false);
+                  closeDropdowns();
                   onOpenTeamModal();
                 }}
                 className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-slate-800 flex items-center space-x-2 cursor-pointer"
@@ -429,8 +573,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               <button
+                type="button"
                 onClick={() => {
-                  setShowUserDropdown(false);
+                  closeDropdowns();
                   onOpenAuthModal();
                 }}
                 className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-slate-300 hover:bg-slate-800 flex items-center space-x-2 cursor-pointer"
@@ -442,11 +587,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="border-t border-slate-800 my-1" />
 
               <button
+                type="button"
                 onClick={() => {
-                  setShowUserDropdown(false);
+                  closeDropdowns();
                   onLogout();
                 }}
-                className="w-full text-left px-2 py-1.5 rounded-lg text-xs text-rose-400 hover:bg-rose-500/10 flex items-center space-x-2 cursor-pointer"
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-rose-400 hover:bg-rose-500/10 flex items-center space-x-2 cursor-pointer"
               >
                 <span>Log Out</span>
               </button>

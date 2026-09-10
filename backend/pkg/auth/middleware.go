@@ -29,7 +29,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		claims := &Claims{}
 
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+			return GetJWTSecret(), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -54,7 +54,7 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 			if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
 				claims := &Claims{}
 				token, err := jwt.ParseWithClaims(parts[1], claims, func(token *jwt.Token) (interface{}, error) {
-					return jwtSecret, nil
+					return GetJWTSecret(), nil
 				})
 				if err == nil && token.Valid {
 					c.Set("userId", claims.UserID)

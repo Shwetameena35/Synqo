@@ -11,9 +11,28 @@ import {
   ParsedOpenAPISpec,
   User,
   WorkspaceMember,
+  RequestComment,
 } from '../types';
 
-const API_BASE = '/api/v1';
+const envApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const envBasePath = import.meta.env.VITE_API_BASE_PATH || '/api/v1';
+export const API_BASE = envApiUrl ? `${envApiUrl}${envBasePath}` : envBasePath;
+
+export function safeStringify(data: any): string {
+  const seen = new WeakSet();
+  return JSON.stringify(data, (_key, value) => {
+    if (typeof value === 'object' && value !== null) {
+      if (typeof window !== 'undefined' && (value instanceof Node || value instanceof Element)) {
+        return undefined;
+      }
+      if (seen.has(value)) {
+        return undefined;
+      }
+      seen.add(value);
+    }
+    return value;
+  });
+}
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('token');
@@ -71,6 +90,11 @@ export const api = {
     fetchJSON<{ message: string }>(`${API_BASE}/workspaces/${workspaceId}/members/${memberId}`, {
       method: 'DELETE',
     }),
+  updateMemberRole: (workspaceId: string, memberId: string, role: string) =>
+    fetchJSON<WorkspaceMember>(`${API_BASE}/workspaces/${workspaceId}/members/${memberId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
 
   // Collections & Requests
   getCollections: (workspaceId: string) =>
@@ -87,12 +111,12 @@ export const api = {
   createRequest: (data: Partial<RequestItem>) =>
     fetchJSON<RequestItem>(`${API_BASE}/requests`, {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: safeStringify(data),
     }),
   updateRequest: (id: string, data: Partial<RequestItem>) =>
     fetchJSON<RequestItem>(`${API_BASE}/requests/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: safeStringify(data),
     }),
   deleteRequest: (id: string) =>
     fetchJSON<{ message: string }>(`${API_BASE}/requests/${id}`, { method: 'DELETE' }),
@@ -138,6 +162,11 @@ export const api = {
   // Test Runner
   executeRequest: (payload: any) =>
     fetchJSON<ExecuteResponsePayload>(`${API_BASE}/runner/execute`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  recordExecution: (payload: any) =>
+    fetchJSON<{ status: string; historyId: string }>(`${API_BASE}/runner/record`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
@@ -202,4 +231,22 @@ export const api = {
 
   getUserInvitations: () =>
     fetchJSON<any[]>(`${API_BASE}/user/invitations`),
+
+  // Request Comments & Collaboration
+  getComments: (requestId: string) =>
+    fetchJSON<RequestComment[]>(`${API_BASE}/requests/${requestId}/comments`),
+  addComment: (requestId: string, data: { content: string; parentId?: string; statusCode?: number }) =>
+    fetchJSON<RequestComment>(`${API_BASE}/requests/${requestId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  toggleResolveComment: (commentId: string, status: 'open' | 'resolved') =>
+    fetchJSON<RequestComment>(`${API_BASE}/comments/${commentId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  deleteComment: (commentId: string) =>
+    fetchJSON<{ message: string }>(`${API_BASE}/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
 };

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -17,6 +18,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+// FormFieldItem represents a form-data or urlencoded item
+type FormFieldItem struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Enabled bool   `json:"enabled"`
+	Type    string `json:"type"` // "text" or "file"
+}
 
 // HeaderItem represents an outgoing HTTP header
 type HeaderItem struct {
@@ -113,8 +122,72 @@ func ExecuteRequest(c *gin.Context) {
 
 	// 3. Prepare Request Body
 	var bodyReader io.Reader
-	if payload.BodyType != "none" && bodyContent != "" {
-		bodyReader = bytes.NewBufferString(bodyContent)
+	var autoContentType string
+
+	switch strings.ToLower(payload.BodyType) {
+	case "json":
+		if bodyContent != "" {
+			bodyReader = bytes.NewBufferString(bodyContent)
+		}
+		autoContentType = "application/json"
+
+	case "raw":
+		if bodyContent != "" {
+			bodyReader = bytes.NewBufferString(bodyContent)
+		}
+		autoContentType = "text/plain"
+
+	case "x-www-form-urlencoded":
+		var formItems []FormFieldItem
+		if err := json.Unmarshal([]byte(bodyContent), &formItems); err == nil && len(formItems) > 0 {
+			formVals := url.Values{}
+			for _, item := range formItems {
+				if item.Enabled && item.Key != "" {
+					k := item.Key
+					v := item.Value
+					if payload.EnvironmentID != "" {
+						k = environment.ResolveVariables(k, payload.EnvironmentID, db)
+						v = environment.ResolveVariables(v, payload.EnvironmentID, db)
+					}
+					formVals.Add(k, v)
+				}
+			}
+			bodyReader = strings.NewReader(formVals.Encode())
+		} else if bodyContent != "" {
+			bodyReader = strings.NewReader(bodyContent)
+		}
+		autoContentType = "application/x-www-form-urlencoded"
+
+	case "form-data", "formdata":
+		var formItems []FormFieldItem
+		if err := json.Unmarshal([]byte(bodyContent), &formItems); err == nil && len(formItems) > 0 {
+			bodyBuf := &bytes.Buffer{}
+			mpWriter := multipart.NewWriter(bodyBuf)
+			for _, item := range formItems {
+				if item.Enabled && item.Key != "" {
+					k := item.Key
+					v := item.Value
+					if payload.EnvironmentID != "" {
+						k = environment.ResolveVariables(k, payload.EnvironmentID, db)
+						v = environment.ResolveVariables(v, payload.EnvironmentID, db)
+					}
+					if item.Type == "file" {
+						part, err := mpWriter.CreateFormFile(k, "upload.bin")
+						if err == nil {
+							_, _ = io.WriteString(part, v)
+						}
+					} else {
+						_ = mpWriter.WriteField(k, v)
+					}
+				}
+			}
+			_ = mpWriter.Close()
+			bodyReader = bodyBuf
+			autoContentType = mpWriter.FormDataContentType()
+		} else if bodyContent != "" {
+			bodyReader = strings.NewReader(bodyContent)
+			autoContentType = "multipart/form-data"
+		}
 	}
 
 	httpReq, err := http.NewRequest(strings.ToUpper(payload.Method), finalURL, bodyReader)
@@ -134,9 +207,9 @@ func ExecuteRequest(c *gin.Context) {
 		}
 	}
 
-	// Default Content-Type if JSON body and not explicitly set
-	if payload.BodyType == "json" && httpReq.Header.Get("Content-Type") == "" {
-		httpReq.Header.Set("Content-Type", "application/json")
+	// Default Content-Type if not explicitly overridden by user
+	if autoContentType != "" && httpReq.Header.Get("Content-Type") == "" {
+		httpReq.Header.Set("Content-Type", autoContentType)
 	}
 
 	// 5. Handle Authentication
@@ -291,3 +364,73 @@ func ClearHistory(c *gin.Context) {
 	db.Delete(&database.TestHistory{}, "workspace_id = ?", workspaceID)
 	c.JSON(http.StatusOK, gin.H{"message": "Test history cleared"})
 }
+
+// RecordExecutionPayload is sent by client-side browser runner to log test results and metrics
+type RecordExecutionPayload struct {
+	WorkspaceID      string `json:"workspaceId" binding:"required"`
+	RequestItemID    string `json:"requestItemId"`
+	RequestName      string `json:"requestName"`
+	Method           string `json:"method"`
+	URL              string `json:"url"`
+	StatusCode       int    `json:"statusCode"`
+	StatusText       string `json:"statusText"`
+	LatencyMs        int64  `json:"latencyMs"`
+	ResponseSize     int64  `json:"responseSize"`
+	ResponseHeaders  string `json:"responseHeaders"`
+	ResponseBody     string `json:"responseBody"`
+	AssertionsPassed int    `json:"assertionsPassed"`
+	AssertionsTotal  int    `json:"assertionsTotal"`
+	AssertionDetails string `json:"assertionDetails"`
+}
+
+// RecordExecution stores history and telemetry for requests executed client-side in the browser
+func RecordExecution(c *gin.Context) {
+	var payload RecordExecutionPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	db := database.GetDB()
+
+	historyEntry := database.TestHistory{
+		ID:               "hist_" + uuid.New().String()[:8],
+		WorkspaceID:      payload.WorkspaceID,
+		RequestItemID:    payload.RequestItemID,
+		RequestName:      payload.RequestName,
+		Method:           payload.Method,
+		URL:              payload.URL,
+		StatusCode:       payload.StatusCode,
+		StatusText:       payload.StatusText,
+		LatencyMs:        payload.LatencyMs,
+		ResponseSize:     payload.ResponseSize,
+		ResponseHeaders:  payload.ResponseHeaders,
+		ResponseBody:     payload.ResponseBody,
+		AssertionsPassed: payload.AssertionsPassed,
+		AssertionsTotal:  payload.AssertionsTotal,
+		AssertionDetails: payload.AssertionDetails,
+		ExecutedAt:       time.Now(),
+	}
+	db.Create(&historyEntry)
+
+	// Record Metric Record for Telemetry
+	parsedURL, _ := url.Parse(payload.URL)
+	endpoint := payload.URL
+	if parsedURL != nil && parsedURL.Path != "" {
+		endpoint = parsedURL.Path
+	}
+
+	db.Create(&database.MetricRecord{
+		ID:          "rec_" + uuid.New().String()[:8],
+		WorkspaceID: payload.WorkspaceID,
+		Endpoint:    endpoint,
+		Method:      payload.Method,
+		StatusCode:  payload.StatusCode,
+		LatencyMs:   payload.LatencyMs,
+		IsError:     payload.StatusCode >= 400 || payload.StatusCode == 0,
+		Timestamp:   time.Now(),
+	})
+
+	c.JSON(http.StatusOK, gin.H{"status": "recorded", "historyId": historyEntry.ID})
+}
+

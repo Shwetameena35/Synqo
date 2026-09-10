@@ -40,7 +40,7 @@ export const TeamModal: React.FC<TeamModalProps> = ({
     setGeneratingLink(true);
     try {
       const res = await api.createInvite(workspaceId, { role: targetRole });
-      const fullUrl = `${window.location.origin}/join/${res.inviteCode}`;
+      const fullUrl = `${window.location.origin}/?join=${res.inviteCode}`;
       setInviteLink(fullUrl);
     } catch (err: any) {
       console.error('Failed to generate invite link', err);
@@ -98,6 +98,15 @@ export const TeamModal: React.FC<TeamModalProps> = ({
       } catch (err: any) {
         alert(err.message || 'Failed to remove member');
       }
+    }
+  };
+
+  const handleUpdateRole = async (memberId: string, newRole: string) => {
+    try {
+      await api.updateMemberRole(workspaceId, memberId, newRole);
+      fetchMembers();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update member role');
     }
   };
 
@@ -300,14 +309,30 @@ export const TeamModal: React.FC<TeamModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3">
-                      {getRoleBadge(member.role)}
+                    <div className="flex items-center space-x-2.5">
+                      {member.role === 'owner' ? (
+                        getRoleBadge(member.role)
+                      ) : (
+                        <select
+                          value={member.role}
+                          onChange={(e) => handleUpdateRole(member.id, e.target.value)}
+                          className={`text-[11px] font-semibold px-2 py-1 rounded-lg border focus:outline-none cursor-pointer transition-all ${
+                            member.role === 'editor'
+                              ? 'bg-purple-500/10 text-purple-300 border-purple-500/30 hover:border-purple-400'
+                              : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-slate-500'
+                          }`}
+                          title="Click to change team member permission"
+                        >
+                          <option value="editor" className="bg-slate-900 text-purple-300 font-semibold">Editor</option>
+                          <option value="viewer" className="bg-slate-900 text-slate-300 font-semibold">Viewer</option>
+                        </select>
+                      )}
 
                       {member.role !== 'owner' && (
                         <button
                           onClick={() => handleRemoveMember(member.id)}
                           title="Remove member"
-                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
+                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

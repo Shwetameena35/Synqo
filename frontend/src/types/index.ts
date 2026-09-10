@@ -28,6 +28,13 @@ export interface HeaderParamItem {
   enabled: boolean;
 }
 
+export interface FormDataItem {
+  key: string;
+  value: string;
+  enabled: boolean;
+  type?: 'text' | 'file';
+}
+
 export interface AssertionRule {
   type: 'status_code' | 'response_time' | 'body_contains' | 'header_exists';
   operator: 'equals' | 'not_equals' | 'less_than' | 'greater_than' | 'contains' | 'is_2xx';
@@ -40,6 +47,33 @@ export interface AssertionResult {
   actual: string;
   expected: string;
   message: string;
+}
+
+export interface DocField {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  required: boolean;
+  description: string;
+  example: string;
+}
+
+export interface DocResponseExample {
+  statusCode: number;
+  statusText: string;
+  description: string;
+  body: string;
+  headers?: Record<string, string>;
+}
+
+export interface DocMetadata {
+  summary?: string;
+  description?: string;
+  fields?: DocField[];
+  headerFields?: DocField[];
+  queryFields?: DocField[];
+  successResponse?: DocResponseExample;
+  errorResponses?: DocResponseExample[];
+  updatedAt?: string;
 }
 
 export interface RequestItem {
@@ -58,7 +92,24 @@ export interface RequestItem {
   authType: string;
   authConfig: string; // JSON
   tests: string;      // JSON
+  docsMetadata?: string; // JSON string with DocMetadata
   orderIndex: number;
+}
+
+export interface RequestComment {
+  id: string;
+  requestId: string;
+  workspaceId: string;
+  parentId?: string;
+  authorId: string;
+  authorName: string;
+  authorEmail?: string;
+  content: string;
+  status: 'open' | 'resolved';
+  statusCode?: number;
+  replies?: RequestComment[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Folder {

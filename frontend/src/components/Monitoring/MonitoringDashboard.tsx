@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Activity,
   CheckCircle2,
@@ -18,6 +18,74 @@ interface MonitoringDashboardProps {
   workspaceName?: string;
   onGoToRunner?: () => void;
 }
+
+interface AnimatedCounterProps {
+  value: number;
+  duration?: number;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+}
+
+/**
+ * AnimatedCounter: Smoothly animates numbers from 0 up to target value
+ * with an easeOut cubic curve.
+ */
+const AnimatedCounter: React.FC<AnimatedCounterProps> = ({
+  value,
+  duration = 1200,
+  decimals = 0,
+  prefix = '',
+  suffix = '',
+}) => {
+  const [displayValue, setDisplayValue] = useState(0);
+  const isInitialMount = useRef(true);
+  const prevValueRef = useRef(0);
+
+  useEffect(() => {
+    const endVal = typeof value === 'number' && !isNaN(value) ? value : 0;
+    const startVal = isInitialMount.current ? 0 : prevValueRef.current;
+    isInitialMount.current = false;
+    prevValueRef.current = endVal;
+
+    if (startVal === endVal && displayValue === endVal) return;
+
+    let startTimestamp: number | null = null;
+    let animationFrameId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      // Smooth cubic ease out
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const current = startVal + (endVal - startVal) * easeOut;
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        setDisplayValue(endVal);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [value, duration]);
+
+  const formatted =
+    decimals > 0
+      ? displayValue.toFixed(decimals)
+      : Math.round(displayValue).toLocaleString();
+
+  return (
+    <span>
+      {prefix}
+      {formatted}
+      {suffix}
+    </span>
+  );
+};
 
 const getMethodBadgeClass = (method: string) => {
   switch (method.toUpperCase()) {
@@ -128,7 +196,9 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               <span className="font-game text-[11px] uppercase tracking-wider">Total Requests</span>
               <Activity className="h-4 w-4 text-[#FF6C37]" />
             </div>
-            <div className="font-game text-2xl font-black text-white">{metrics.totalRequests}</div>
+            <div className="font-game text-2xl font-black text-white">
+              <AnimatedCounter value={metrics.totalRequests} />
+            </div>
             <div className="text-[11px] text-[#FF6C37] flex items-center space-x-1 font-semibold">
               <TrendingUp className="h-3 w-3" />
               <span>Throughput tracking active</span>
@@ -140,9 +210,11 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               <span className="font-game text-[11px] uppercase tracking-wider">Success Rate</span>
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             </div>
-            <div className="font-game text-2xl font-black text-emerald-400">{successRate}%</div>
+            <div className="font-game text-2xl font-black text-emerald-400">
+              <AnimatedCounter value={metrics.totalRequests > 0 ? 100 - metrics.errorRate : 100} decimals={1} suffix="%" />
+            </div>
             <div className="text-[11px] text-neutral-400 font-medium">
-              {metrics.totalErrors} errors encountered
+              <AnimatedCounter value={metrics.totalErrors} /> errors encountered
             </div>
           </div>
 
@@ -151,9 +223,11 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               <span className="font-game text-[11px] uppercase tracking-wider">Avg Latency</span>
               <Clock className="h-4 w-4 text-purple-400" />
             </div>
-            <div className="font-game text-2xl font-black text-white">{metrics.avgLatencyMs} ms</div>
+            <div className="font-game text-2xl font-black text-white">
+              <AnimatedCounter value={metrics.avgLatencyMs} suffix=" ms" />
+            </div>
             <div className="text-[11px] text-purple-400 font-mono font-semibold">
-              P50: {metrics.p50LatencyMs}ms
+              P50: <AnimatedCounter value={metrics.p50LatencyMs} suffix="ms" />
             </div>
           </div>
 
@@ -162,9 +236,11 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               <span className="font-game text-[11px] uppercase tracking-wider">P95 / P99 Latency</span>
               <Zap className="h-4 w-4 text-amber-400" />
             </div>
-            <div className="font-game text-2xl font-black text-amber-400">{metrics.p95LatencyMs} ms</div>
+            <div className="font-game text-2xl font-black text-amber-400">
+              <AnimatedCounter value={metrics.p95LatencyMs} suffix=" ms" />
+            </div>
             <div className="text-[11px] text-neutral-400 font-mono font-semibold">
-              P99: {metrics.p99LatencyMs}ms
+              P99: <AnimatedCounter value={metrics.p99LatencyMs} suffix="ms" />
             </div>
           </div>
         </div>
@@ -217,14 +293,16 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               <div>
                 <div className="flex justify-between text-xs mb-1.5 font-medium">
                   <span className="text-emerald-400 font-bold">2xx Success</span>
-                  <span className="text-neutral-300 font-mono font-bold">{metrics.status2xxCount}</span>
+                  <span className="text-neutral-300 font-mono font-bold">
+                    <AnimatedCounter value={metrics.status2xxCount} />
+                  </span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-[#141414] overflow-hidden border border-[#2B2B2B]">
                   <div
                     style={{
                       width: `${(metrics.status2xxCount / (metrics.totalRequests || 1)) * 100}%`,
                     }}
-                    className="h-full bg-emerald-500 rounded-full"
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-1000"
                   />
                 </div>
               </div>
@@ -232,14 +310,16 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               <div>
                 <div className="flex justify-between text-xs mb-1.5 font-medium">
                   <span className="text-amber-400 font-bold">4xx Client Errors</span>
-                  <span className="text-neutral-300 font-mono font-bold">{metrics.status4xxCount}</span>
+                  <span className="text-neutral-300 font-mono font-bold">
+                    <AnimatedCounter value={metrics.status4xxCount} />
+                  </span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-[#141414] overflow-hidden border border-[#2B2B2B]">
                   <div
                     style={{
                       width: `${(metrics.status4xxCount / (metrics.totalRequests || 1)) * 100}%`,
                     }}
-                    className="h-full bg-amber-500 rounded-full"
+                    className="h-full bg-amber-500 rounded-full transition-all duration-1000"
                   />
                 </div>
               </div>
@@ -247,14 +327,16 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
               <div>
                 <div className="flex justify-between text-xs mb-1.5 font-medium">
                   <span className="text-rose-400 font-bold">5xx Server Errors</span>
-                  <span className="text-neutral-300 font-mono font-bold">{metrics.status5xxCount}</span>
+                  <span className="text-neutral-300 font-mono font-bold">
+                    <AnimatedCounter value={metrics.status5xxCount} />
+                  </span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-[#141414] overflow-hidden border border-[#2B2B2B]">
                   <div
                     style={{
                       width: `${(metrics.status5xxCount / (metrics.totalRequests || 1)) * 100}%`,
                     }}
-                    className="h-full bg-rose-500 rounded-full"
+                    className="h-full bg-rose-500 rounded-full transition-all duration-1000"
                   />
                 </div>
               </div>
@@ -289,9 +371,11 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
                   </div>
                   <div className="col-span-6 text-neutral-200 truncate">{ep.endpoint}</div>
                   <div className="col-span-2 text-right text-[#FF6C37] font-semibold font-game">
-                    {ep.hits} hits
+                    <AnimatedCounter value={ep.hits} suffix=" hits" />
                   </div>
-                  <div className="col-span-2 text-right text-emerald-400 font-mono font-semibold">{ep.avgMs} ms</div>
+                  <div className="col-span-2 text-right text-emerald-400 font-mono font-semibold">
+                    <AnimatedCounter value={ep.avgMs} suffix=" ms" />
+                  </div>
                 </div>
               ))
             ) : (

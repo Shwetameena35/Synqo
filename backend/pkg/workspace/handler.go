@@ -193,6 +193,46 @@ func RemoveMember(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Member removed successfully"})
 }
 
+// UpdateMemberRole updates a member's permission role (editor <-> viewer)
+func UpdateMemberRole(c *gin.Context) {
+	workspaceID := c.Param("workspaceId")
+	memberID := c.Param("memberId")
+
+	var req struct {
+		Role string `json:"role" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role is required"})
+		return
+	}
+
+	role := strings.ToLower(strings.TrimSpace(req.Role))
+	if role != "editor" && role != "viewer" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role must be 'editor' or 'viewer'"})
+		return
+	}
+
+	db := database.GetDB()
+	var member database.WorkspaceMember
+	if err := db.Where("id = ? AND workspace_id = ?", memberID, workspaceID).First(&member).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Member not found in this workspace"})
+		return
+	}
+
+	if member.Role == "owner" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot change the workspace owner's role"})
+		return
+	}
+
+	member.Role = role
+	if err := db.Save(&member).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update member role"})
+		return
+	}
+
+	c.JSON(http.StatusOK, member)
+}
+
 // CreateWorkspace creates a new workspace
 func CreateWorkspace(c *gin.Context) {
 	var req struct {
@@ -207,7 +247,7 @@ func CreateWorkspace(c *gin.Context) {
 	userIDVal, hasUser := c.Get("userId")
 	emailVal, _ := c.Get("email")
 	userID := "usr_demo_1"
-	userEmail := "palak@apihub.dev"
+	userEmail := "demo@apihub.dev"
 	userName := "Creator"
 
 	if hasUser && userIDVal != "" {
@@ -251,17 +291,6 @@ func CreateWorkspace(c *gin.Context) {
 		UserName:    userName,
 		Role:        "owner",
 		JoinedAt:    time.Now(),
-	})
-
-	// Add default environment
-	db.Create(&database.Environment{
-		ID:          "env_" + uuid.New().String()[:8],
-		WorkspaceID: ws.ID,
-		Name:        "Development",
-		IsDefault:   true,
-		Variables:   `[{"key": "baseUrl", "value": "http://localhost:8080/api/v1", "isSecret": false, "enabled": true}]`,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
 	})
 
 	c.JSON(http.StatusCreated, ws)
@@ -446,6 +475,9 @@ func UpdateRequest(c *gin.Context) {
 	req.AuthType = updated.AuthType
 	req.AuthConfig = updated.AuthConfig
 	req.Tests = updated.Tests
+	if updated.DocsMetadata != "" {
+		req.DocsMetadata = updated.DocsMetadata
+	}
 	if updated.CollectionID != "" {
 		req.CollectionID = updated.CollectionID
 	}

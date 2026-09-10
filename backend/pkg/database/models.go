@@ -88,6 +88,7 @@ type RequestItem struct {
 	AuthType     string    `gorm:"type:varchar(32);default:'none'" json:"authType"` // none, bearer, basic, apikey
 	AuthConfig   string    `gorm:"type:text" json:"authConfig"`  // JSON string: {"token": "...", "username": "..."}
 	Tests        string    `gorm:"type:text" json:"tests"`       // JSON string: [{"type": "status_code", "operator": "equals", "value": "200"}]
+	DocsMetadata string    `gorm:"type:text" json:"docsMetadata"` // JSON string: DocMetadata (fields, descriptions, mandatory flags, success/error responses)
 	OrderIndex   int       `gorm:"default:0" json:"orderIndex"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`
@@ -167,4 +168,21 @@ type MetricRecord struct {
 	LatencyMs   int64     `json:"latencyMs"`
 	IsError     bool      `gorm:"index" json:"isError"`
 	Timestamp   time.Time `gorm:"index" json:"timestamp"`
+}
+
+// RequestComment represents a team discussion or issue report on an API request
+type RequestComment struct {
+	ID          string           `gorm:"primaryKey;type:varchar(64)" json:"id"`
+	RequestID   string           `gorm:"type:varchar(64);index;not null" json:"requestId"`
+	WorkspaceID string           `gorm:"type:varchar(64);index;not null" json:"workspaceId"`
+	ParentID    string           `gorm:"type:varchar(64);index" json:"parentId"` // Empty if root comment, set if reply
+	AuthorID    string           `gorm:"type:varchar(64);not null" json:"authorId"`
+	AuthorName  string           `gorm:"type:varchar(128);not null" json:"authorName"`
+	AuthorEmail string           `gorm:"type:varchar(128)" json:"authorEmail"`
+	Content     string           `gorm:"type:text;not null" json:"content"`
+	Status      string           `gorm:"type:varchar(32);default:'open'" json:"status"` // "open", "resolved"
+	StatusCode  int              `json:"statusCode,omitempty"`
+	Replies     []RequestComment `gorm:"-" json:"replies,omitempty"`
+	CreatedAt   time.Time        `json:"createdAt"`
+	UpdatedAt   time.Time        `json:"updatedAt"`
 }

@@ -16,6 +16,7 @@ import { TeamModal } from './components/Team/TeamModal';
 import { JoinInvitePage } from './components/Team/JoinInvitePage';
 import { api } from './services/api';
 import { realtime, WSMessage } from './services/websocket';
+import { executeBrowserDirect, isLocalUrl } from './services/browserRunner';
 import {
   Workspace,
   CollectionWithTree,
@@ -26,6 +27,7 @@ import {
   ExecuteResponsePayload,
   User,
   WorkspaceMember,
+  VariableItem,
 } from './types';
 
 export function App() {
@@ -54,6 +56,21 @@ export function App() {
   const [response, setResponse] = useState<ExecuteResponsePayload | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Responsive Layout States
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [mobileActiveView, setMobileActiveView] = useState<'request' | 'response'>('request');
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : true
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // URL Routing & Active Tab
   const location = useLocation();
   const navigate = useNavigate();
@@ -71,7 +88,9 @@ export function App() {
 
   // Sync route on mount and session state change
   useEffect(() => {
-    if (location.pathname.startsWith('/join/')) {
+    const searchParams = new URLSearchParams(location.search);
+    const joinCodeParam = searchParams.get('join');
+    if (location.pathname.startsWith('/join/') || joinCodeParam) {
       return;
     }
     if (!currentUser && !isDemoMode) {
@@ -83,7 +102,7 @@ export function App() {
         navigate('/collections', { replace: true });
       }
     }
-  }, [currentUser, isDemoMode, location.pathname, navigate]);
+  }, [currentUser, isDemoMode, location.pathname, location.search, navigate]);
 
   // Invitations & Notifications
   const [invitations, setInvitations] = useState<any[]>([]);
@@ -178,6 +197,15 @@ export function App() {
     localStorage.setItem('active_workspace_id', ws.id);
   };
 
+  const handleSelectEnvironment = (env: Environment | null) => {
+    setCurrentEnvironment(env);
+    if (currentWorkspace && env) {
+      localStorage.setItem(`active_env_${currentWorkspace.id}`, env.id);
+    } else if (currentWorkspace && !env) {
+      localStorage.removeItem(`active_env_${currentWorkspace.id}`);
+    }
+  };
+
   // 1. Load workspaces for authenticated user or demo mode
   useEffect(() => {
     if (currentUser || isDemoMode) {
@@ -210,14 +238,23 @@ export function App() {
       setCollections(cols);
       if (cols.length > 0 && cols[0].requests?.length > 0 && !selectedRequest) {
         setSelectedRequest(cols[0].requests[0]);
+      } else if (cols.length === 0 || !cols.some((c) => c.requests && c.requests.length > 0)) {
+        if (!selectedRequest?.id?.startsWith('req_temp_')) {
+          setSelectedRequest(null);
+        }
       }
     });
 
     // Environments
     api.getEnvironments(wsId).then((envs) => {
       setEnvironments(envs);
-      const def = envs.find((e) => e.isDefault) || envs[0] || null;
+      const savedEnvId = localStorage.getItem(`active_env_${wsId}`);
+      const savedEnv = savedEnvId ? envs.find((e) => e.id === savedEnvId) : null;
+      const def = savedEnv || envs.find((e) => e.isDefault) || envs[0] || null;
       setCurrentEnvironment(def);
+      if (def) {
+        localStorage.setItem(`active_env_${wsId}`, def.id);
+      }
     });
 
     // Mocks
@@ -287,20 +324,55 @@ export function App() {
     navigate('/login');
   };
 
-  // Handle Execute Request
+  // Handle Execute Request (Supports both Browser Direct for localhost and Cloud Proxy)
   const handleSendRequest = async (payload: any) => {
     if (!currentWorkspace) return;
     setIsLoading(true);
     try {
-      const res = await api.executeRequest({
-        ...payload,
-        workspaceId: currentWorkspace.id,
-        environmentId: currentEnvironment?.id,
-      });
+      // Determine active environment variables
+      let activeVariables: VariableItem[] = [];
+      if (currentEnvironment?.variables) {
+        try {
+          activeVariables = JSON.parse(currentEnvironment.variables);
+        } catch {}
+      }
+
+      // Check runner mode
+      const targetUrl = payload.url || '';
+      const mode = payload.runnerMode || 'auto';
+      const shouldUseBrowser =
+        mode === 'browser' ||
+        (mode === 'auto' && isLocalUrl(targetUrl));
+
+      let res: ExecuteResponsePayload;
+      if (shouldUseBrowser) {
+        res = await executeBrowserDirect(
+          {
+            ...payload,
+            workspaceId: currentWorkspace.id,
+            environmentId: currentEnvironment?.id,
+          },
+          activeVariables
+        );
+      } else {
+        res = await api.executeRequest({
+          ...payload,
+          workspaceId: currentWorkspace.id,
+          environmentId: currentEnvironment?.id,
+        });
+      }
+
       setResponse(res);
+      // Auto-switch to response tab on mobile so user sees result immediately
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        setMobileActiveView('response');
+      }
       // Reload history
       api.getHistory(currentWorkspace.id).then(setHistory);
     } catch (err: any) {
+      if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        setMobileActiveView('response');
+      }
       setResponse({
         statusCode: 500,
         statusText: 'Client Error',
@@ -322,32 +394,65 @@ export function App() {
   const handleSaveRequest = async (reqData: Partial<RequestItem>) => {
     if (!currentWorkspace) return;
 
-    if (reqData.id && reqData.id.startsWith('req_') && !reqData.id.startsWith('req_temp_')) {
-      const updated = await api.updateRequest(reqData.id, reqData);
+    const rawColId = typeof reqData.collectionId === 'string' ? reqData.collectionId : undefined;
+    const selectedColId = typeof selectedRequest?.collectionId === 'string' ? selectedRequest.collectionId : undefined;
+    const firstColId = typeof collections[0]?.id === 'string' ? collections[0].id : undefined;
+    let targetColId = rawColId || selectedColId || firstColId;
+
+    if (!targetColId) {
+      // Auto-create a default collection if user has none
+      const newCol = await api.createCollection(currentWorkspace.id, {
+        name: 'My APIs',
+        description: 'Default collection',
+      });
+      targetColId = newCol.id;
+    }
+
+    const payload = {
+      name: typeof reqData.name === 'string' && reqData.name.trim() ? reqData.name.trim() : 'Untitled Request',
+      method: typeof reqData.method === 'string' ? reqData.method : 'GET',
+      url: typeof reqData.url === 'string' ? reqData.url : '',
+      headers: typeof reqData.headers === 'string' ? reqData.headers : JSON.stringify(reqData.headers || []),
+      params: typeof reqData.params === 'string' ? reqData.params : JSON.stringify(reqData.params || []),
+      bodyType: typeof reqData.bodyType === 'string' ? reqData.bodyType : 'none',
+      bodyContent: typeof reqData.bodyContent === 'string' ? reqData.bodyContent : '',
+      authType: typeof reqData.authType === 'string' ? reqData.authType : 'none',
+      authConfig: typeof reqData.authConfig === 'string' ? reqData.authConfig : '{}',
+      tests: typeof reqData.tests === 'string' ? reqData.tests : '[]',
+      docsMetadata: typeof reqData.docsMetadata === 'string' ? reqData.docsMetadata : (reqData.docsMetadata ? JSON.stringify(reqData.docsMetadata) : undefined),
+      workspaceId: currentWorkspace.id,
+      collectionId: targetColId,
+    };
+
+    if (reqData.id && typeof reqData.id === 'string' && reqData.id.startsWith('req_') && !reqData.id.startsWith('req_temp_')) {
+      const updated = await api.updateRequest(reqData.id, payload);
       setSelectedRequest(updated);
     } else {
-      const targetColId = reqData.collectionId || selectedRequest?.collectionId || collections[0]?.id;
-      if (!targetColId) return;
-      const { id, ...createPayload } = reqData;
-      const created = await api.createRequest({
-        ...createPayload,
-        workspaceId: currentWorkspace.id,
-        collectionId: targetColId,
-      });
+      const created = await api.createRequest(payload);
       setSelectedRequest(created);
     }
     await loadWorkspaceData(currentWorkspace.id);
   };
 
   // Create new blank request
-  const handleNewRequest = (targetCollectionId?: string) => {
-    if (!currentWorkspace || collections.length === 0) return;
-    const colId = targetCollectionId || selectedRequest?.collectionId || collections[0].id;
+  const handleNewRequest = async (targetCollectionId?: any) => {
+    if (!currentWorkspace) return;
+    const explicitColId = typeof targetCollectionId === 'string' ? targetCollectionId : undefined;
+    let colId = explicitColId || (typeof selectedRequest?.collectionId === 'string' ? selectedRequest.collectionId : undefined) || (typeof collections[0]?.id === 'string' ? collections[0].id : undefined);
+    if (!colId) {
+      // Auto-create a default collection if user has none
+      const newCol = await api.createCollection(currentWorkspace.id, {
+        name: 'My APIs',
+        description: 'Default collection',
+      });
+      setCollections([newCol]);
+      colId = newCol.id;
+    }
     const targetCol = collections.find((c) => c.id === colId);
     const newReq: RequestItem = {
       id: `req_temp_${Date.now()}`,
       workspaceId: currentWorkspace.id,
-      collectionId: colId,
+      collectionId: colId || '',
       name: targetCol ? `New ${targetCol.name} Request` : 'New Untitled Request',
       method: 'GET',
       url: '',
@@ -466,9 +571,12 @@ export function App() {
     navigate('/collections');
   };
 
-  // Handle join route
-  const isJoinRoute = location.pathname.startsWith('/join/');
-  const inviteCode = isJoinRoute ? location.pathname.split('/join/')[1] : null;
+  // Handle join route (supports both /join/:code and /?join=:code for SPA static hosts like Render)
+  const searchParams = new URLSearchParams(location.search);
+  const joinQueryCode = searchParams.get('join');
+  const isJoinRoute = location.pathname.startsWith('/join/') || Boolean(joinQueryCode);
+  const rawPathCode = location.pathname.startsWith('/join/') ? location.pathname.split('/join/')[1]?.split('?')[0] : null;
+  const inviteCode = joinQueryCode || rawPathCode;
 
   if (isJoinRoute && inviteCode) {
     return (
@@ -519,7 +627,7 @@ export function App() {
         }}
         environments={environments}
         currentEnvironment={currentEnvironment}
-        onSelectEnvironment={setCurrentEnvironment}
+        onSelectEnvironment={handleSelectEnvironment}
         onOpenEnvModal={() => setShowEnvModal(true)}
         onOpenImportModal={() => setShowImportModal(true)}
         onNewRequest={handleNewRequest}
@@ -532,10 +640,12 @@ export function App() {
         membersCount={members.length}
         invitations={invitations}
         onAcceptInvite={handleAcceptInvitation}
+        isMobileSidebarOpen={isMobileSidebarOpen}
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
       />
 
       {/* Main Workspace Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Left Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -547,7 +657,7 @@ export function App() {
             navigate('/collections');
           }}
           onDeleteRequest={handleDeleteRequest}
-          onCreateCollection={() => setShowCreateColModal(true)}
+          onCreateCollection={handleCreateCollection}
           onDeleteCollection={handleDeleteCollection}
           onCreateRequestInCollection={handleNewRequest}
           mocks={mocks}
@@ -592,53 +702,147 @@ export function App() {
               setHistory([]);
             }
           }}
+          isMobileOpen={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
         {/* Center / Right Content Panels */}
-        <main className="flex-1 flex overflow-hidden">
+        <main className="flex-1 flex overflow-hidden min-w-0">
           {activeTab === 'collections' || activeTab === 'history' ? (
-            <div id="main-split-container" className="flex-1 flex overflow-hidden relative">
-              {/* Left: Request Builder */}
-              <div
-                style={{ width: `${requestPanelWidth}%` }}
-                className="h-full overflow-hidden shrink-0 flex flex-col"
-              >
-                <RequestBuilder
-                  request={selectedRequest}
-                  onSend={handleSendRequest}
-                  onSave={handleSaveRequest}
-                  isLoading={isLoading}
-                  onOpenSdkModal={() => navigate('/sdk')}
-                  collections={collections}
-                  onDraftChange={handleUpdateRequestDraft}
-                />
-              </div>
+            <div id="main-split-container" className="flex-1 flex flex-col lg:flex-row overflow-hidden relative min-w-0">
+              {/* Mobile / Tablet Segmented View Switcher (< 1024px) */}
+              {!isDesktop && (
+                <div className="flex items-center justify-between px-3 py-2 bg-[#181818] border-b border-[#2B2B2B] shrink-0">
+                  <div className="flex items-center space-x-1 p-1 rounded-lg bg-[#141414] border border-[#2B2B2B] w-full max-w-xs">
+                    <button
+                      type="button"
+                      onClick={() => setMobileActiveView('request')}
+                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+                        mobileActiveView === 'request'
+                          ? 'bg-[#FF6C37] text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <span>⚡ Request</span>
+                    </button>
 
-              {/* Adjustable Divider Bar */}
-              <div
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  setIsDraggingSplit(true);
-                }}
-                onDoubleClick={() => {
-                  setRequestPanelWidth(50);
-                  localStorage.setItem('layout_request_panel_width', '50');
-                }}
-                className={`w-1.5 hover:w-2 hover:bg-[#FF6C37]/80 bg-[#2B2B2B] transition-all cursor-col-resize shrink-0 relative group flex items-center justify-center z-10 select-none ${
-                  isDraggingSplit ? 'bg-[#FF6C37] w-2 shadow-lg shadow-orange-500/40' : ''
-                }`}
-                title="Drag to resize panels • Double-click to reset 50/50"
-              >
-                <div className="h-8 w-0.5 rounded-full bg-neutral-600 group-hover:bg-white" />
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => setMobileActiveView('response')}
+                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+                        mobileActiveView === 'response'
+                          ? 'bg-[#FF6C37] text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      <span>📄 Response</span>
+                      {response && (
+                        <span
+                          className={`text-[9px] px-1 py-0.2 rounded font-mono font-bold ${
+                            response.statusCode >= 200 && response.statusCode < 300
+                              ? 'bg-emerald-500/20 text-emerald-400'
+                              : 'bg-rose-500/20 text-rose-400'
+                          }`}
+                        >
+                          {response.statusCode}
+                        </span>
+                      )}
+                    </button>
+                  </div>
 
-              {/* Right: Response Viewer */}
-              <div
-                style={{ width: `${100 - requestPanelWidth}%` }}
-                className="h-full overflow-hidden flex-1 flex flex-col"
-              >
-                <ResponseViewer response={response} isLoading={isLoading} />
-              </div>
+                  {response && (
+                    <div className="text-[11px] font-mono text-neutral-400 flex items-center space-x-2 pl-2">
+                      <span className="text-[#FF6C37] font-semibold">{response.latencyMs}ms</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Left: Request Builder Panel */}
+              {isDesktop ? (
+                <div
+                  style={{ width: `${requestPanelWidth}%` }}
+                  className="h-full overflow-hidden shrink-0 flex flex-col"
+                >
+                  <RequestBuilder
+                    request={selectedRequest}
+                    onSend={handleSendRequest}
+                    onSave={handleSaveRequest}
+                    isLoading={isLoading}
+                    response={response}
+                    currentEnvironment={currentEnvironment}
+                    onOpenSdkModal={() => navigate('/sdk')}
+                    collections={collections}
+                    onDraftChange={handleUpdateRequestDraft}
+                    onOpenEnvModal={() => setShowEnvModal(true)}
+                    onEnvironmentUpdated={(updatedEnv) => {
+                      setCurrentEnvironment(updatedEnv);
+                      if (currentWorkspace) {
+                        api.getEnvironments(currentWorkspace.id).then(setEnvironments);
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                mobileActiveView === 'request' && (
+                  <div className="w-full h-full overflow-hidden flex-1 flex flex-col">
+                    <RequestBuilder
+                      request={selectedRequest}
+                      onSend={handleSendRequest}
+                      onSave={handleSaveRequest}
+                      isLoading={isLoading}
+                      response={response}
+                      currentEnvironment={currentEnvironment}
+                      onOpenSdkModal={() => navigate('/sdk')}
+                      collections={collections}
+                      onDraftChange={handleUpdateRequestDraft}
+                      onOpenEnvModal={() => setShowEnvModal(true)}
+                      onEnvironmentUpdated={(updatedEnv) => {
+                        setCurrentEnvironment(updatedEnv);
+                        if (currentWorkspace) {
+                          api.getEnvironments(currentWorkspace.id).then(setEnvironments);
+                        }
+                      }}
+                    />
+                  </div>
+                )
+              )}
+
+              {/* Adjustable Divider Bar (Desktop Only) */}
+              {isDesktop && (
+                <div
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setIsDraggingSplit(true);
+                  }}
+                  onDoubleClick={() => {
+                    setRequestPanelWidth(50);
+                    localStorage.setItem('layout_request_panel_width', '50');
+                  }}
+                  className={`w-1.5 hover:w-2 hover:bg-[#FF6C37]/80 bg-[#2B2B2B] transition-all cursor-col-resize shrink-0 relative group flex items-center justify-center z-10 select-none ${
+                    isDraggingSplit ? 'bg-[#FF6C37] w-2 shadow-lg shadow-orange-500/40' : ''
+                  }`}
+                  title="Drag to resize panels • Double-click to reset 50/50"
+                >
+                  <div className="h-8 w-0.5 rounded-full bg-neutral-600 group-hover:bg-white" />
+                </div>
+              )}
+
+              {/* Right: Response Viewer Panel */}
+              {isDesktop ? (
+                <div
+                  style={{ width: `${100 - requestPanelWidth}%` }}
+                  className="h-full overflow-hidden flex-1 flex flex-col"
+                >
+                  <ResponseViewer response={response} isLoading={isLoading} />
+                </div>
+              ) : (
+                mobileActiveView === 'response' && (
+                  <div className="w-full h-full overflow-hidden flex-1 flex flex-col">
+                    <ResponseViewer response={response} isLoading={isLoading} />
+                  </div>
+                )
+              )}
             </div>
           ) : activeTab === 'mocks' ? (
             <MockStudio
@@ -652,6 +856,7 @@ export function App() {
               collections={collections}
               onTryInRunner={handleTryInRunner}
               onOpenImportModal={() => setShowImportModal(true)}
+              onUpdateRequest={handleSaveRequest}
             />
           ) : activeTab === 'sdk' ? (
             <SdkStudio collections={collections} />
@@ -672,10 +877,18 @@ export function App() {
         workspaceId={currentWorkspace?.id || ''}
         environments={environments}
         currentEnvironment={currentEnvironment}
-        onRefreshEnvironments={() =>
-          currentWorkspace && api.getEnvironments(currentWorkspace.id).then(setEnvironments)
-        }
-        onSelectEnvironment={setCurrentEnvironment}
+        onRefreshEnvironments={() => {
+          if (!currentWorkspace) return;
+          api.getEnvironments(currentWorkspace.id).then((envs) => {
+            setEnvironments(envs);
+            const savedEnvId = localStorage.getItem(`active_env_${currentWorkspace.id}`);
+            const matched = envs.find((e) => e.id === (currentEnvironment?.id || savedEnvId));
+            if (matched) {
+              setCurrentEnvironment(matched);
+            }
+          });
+        }}
+        onSelectEnvironment={handleSelectEnvironment}
       />
 
       {/* OpenAPI Import Modal */}

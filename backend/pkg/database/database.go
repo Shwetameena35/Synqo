@@ -50,6 +50,7 @@ func InitDB() (*gorm.DB, error) {
 		&MockRequestLog{},
 		&TestHistory{},
 		&MetricRecord{},
+		&RequestComment{},
 	)
 	if err != nil {
 		return nil, err
