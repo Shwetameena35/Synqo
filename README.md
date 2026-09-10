@@ -8,6 +8,10 @@
 ![Go](https://img.shields.io/badge/Go-1.26+-00add8.svg?logo=go)
 ![Vite](https://img.shields.io/badge/Vite-8.0-646cff.svg?logo=vite)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind-CSS-38b2ac.svg?logo=tailwind-css)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Render-00B4D8.svg?logo=render&logoColor=white)](https://synqo-frontend.onrender.com/index.html)
+
+
+> 🌐 **Live Web App**: [https://synqo-frontend.onrender.com/index.html](https://synqo-frontend.onrender.com/index.html)
 
 
 ---
@@ -166,6 +170,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 | **Backend**        | Go 1.26+, Gin Web Framework, Gorilla WebSocket, GORM, `golang-jwt/v5`, `bcrypt` |
 | **Storage (Dual)** | PostgreSQL (Production) / SQLite with zero-setup automatic migrations (Local)   |
 | **PubSub & Cache** | Redis (Production) / In-Memory Channel Hub (Local development)                  |
+| **Deployment**     | Render Cloud (Frontend & Backend Services)                                      |
 
 
 ---
@@ -222,6 +227,13 @@ npm run dev
 ```
 
 _Open `http://localhost:5173` in your browser._
+
+## 🚀 Live Cloud Deployment
+
+Synqo is deployed and live on Render:
+
+- **🌐 Live Web Application**: [https://synqo-frontend.onrender.com/index.html](https://synqo-frontend.onrender.com/index.html)
+- **⚡ Zero Setup Required**: Access the full platform instantly in your browser. Build collections, test APIs via Cloud Proxy or Browser Direct, auto-generate documentation, and simulate mock endpoints without local installations!
 
 
 
