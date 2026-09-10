@@ -1,6 +1,6 @@
 # ⚡ Synqo
 
-> **The Modern All-in-One API Development Platform**: Postman + Swagger + Dynamic Mock Server + Multi-Language SDK Studio + Real-Time Collaboration & Telemetry.
+> **The Modern All-in-One API Development Platform**: Postman + Swagger + Dynamic Mock Server + 1-Click Smart API Doc Generator + Multi-Language SDK Studio + Real-Time Collaboration & Telemetry.
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-19-61dafb.svg?logo=react)
@@ -17,7 +17,7 @@
 Modern backend and frontend teams work with APIs every day, but their workflow is fragmented across multiple disjointed tools:
 
 - **Postman** for collections and manual tests
-- **Swagger / Readme** for API specifications and static docs
+- **Swagger / Readme / Notion** for writing tedious, manual API documentation
 - **Mock servers** (Beeceptor, Mockoon) on external domains
 - **SDK generation** via separate CLI scripts or OpenAPI generator
 - **Telemetry & latency tracking** spread across disparate cloud dashboards
@@ -31,22 +31,41 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
 
 ### 1. ⚡ High-Performance Request Builder & Testing Runner
 
-- **Zero-CORS Backend Proxy**: Execute HTTP requests (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) via high-speed Go proxy with millisecond precision latency timers.
+- **Dual-Mode Execution (Zero-CORS Cloud Proxy & Browser Direct)**:
+  - _Cloud Proxy_: Execute requests via high-speed Go proxy with millisecond precision latency timers and zero browser CORS errors.
+  - _Browser Direct_: Test `localhost` services directly from your personal machine when Synqo is deployed.
+  - _Auto-Detect_: Automatically selects the optimal execution strategy based on the endpoint URL.
 - **Instant cURL Import**:
   - _Smart URL Bar Paste_: Paste any raw `curl ...` command directly into the address bar to auto-populate method, endpoint, headers, body, and query parameters.
   - _Dedicated Import Modal_: Monospace cURL editor with 1-click preset templates (_JSON POST_, _GET with Params_, _Form Data Upload_, _Basic Auth_) and live parsed breakdown.
 - **Keyboard Execution Shortcuts**:
   - `↵ Enter` directly in the address bar sends the request immediately.
-  - `Ctrl + Enter` (or `Cmd + Enter`) triggers execution globally from any tab (Params, Headers, Body, Auth, Tests).
-  - Rich hover tooltip on the Send button displays keyboard shortcuts.
+  - `Ctrl + Enter` (or `Cmd + Enter`) triggers execution globally from any tab.
 - **Inline Dynamic Variable Highlighting & Inspector**:
   - `{{baseUrl}}` and other environment variables are highlighted inline inside the URL bar in Synqo orange (or rose if undefined) with zero wasted space.
   - Click directly on any variable in the address bar (or Ctrl+click) to open the **Variable Inspector Modal** to view, reveal masked secrets, copy, or edit and save values in-place.
 - **Visual Assertion Builder & History**:
   - Test response status codes, response time thresholds, body text matches, and header checks.
   - Comprehensive historical execution log with one-click restore.
+- **Contextual Code Snippet Generator**:
+  - Seamlessly embedded right alongside request tabs (`PARAMS`, `HEADERS`, `BODY`, `AUTH`, `TESTS`) to generate ready-to-use snippets in cURL, JavaScript Fetch, Axios, Python, Go, and Java.
 
-### 2. 📡 Dynamic Mock Server Studio
+### 2. 📄 1-Click Smart API Documentation Generator (Zero Manual Typing)
+
+- **Instant Auto-Schema & Data Type Inference**: Automatically inspects request JSON payloads, form-data, or url-encoded bodies to extract field names, types (`string`, `number`, `boolean`, `array`, `object`), and example values.
+- **Smart Mandatory Detection with 1-Click Toggle**: Pre-flags populated fields as `Required` while giving developers a clean **`[ 🔴 Required ]` ⇄ `[ ⚪ Optional ]`** pill button to toggle with a single click.
+- **Live Response Capturing**:
+  - _Success Responses (200 / 201)_: Automatically captures active runner responses or latency metrics.
+  - _Error Responses (400 / 401 / 500)_: Pre-populates realistic error structures and validation messages.
+- **Instant Markdown Export for Frontend Developers**:
+  - 1-click **"Copy Markdown for Dev"** produces clean GitHub/Notion/Slack formatted documentation complete with parameter tables, mandatory badges, sample responses, and copy-paste TypeScript/Fetch integration code.
+  - Standalone `.md` file download.
+- **Interactive Team Documentation Hub**:
+  - View full collection specs with live schema tables and interactive **Success 200 vs Error 400 response switchers**.
+  - 1-click **"Copy Collection Markdown"** to generate an entire project's `API_DOCS.md` in seconds.
+  - In-place doc editing right from the documentation hub.
+
+### 3. 📡 Dynamic Mock Server Studio
 
 - Create live mock endpoints with custom routes (e.g. `GET /users`, `POST /orders`).
 - Configurable response HTTP status codes (`200`, `201`, `400`, `404`, `500`).
@@ -55,14 +74,14 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
   `http://localhost:8080/api/v1/mock/:workspaceId/*path`
 - **Live Traffic Stream**: Real-time incoming mock requests (Client IP, method, headers, duration, body) delivered instantly over WebSockets.
 
-### 3. 📖 OpenAPI 3.0 & Swagger Hub
+### 4. 📖 OpenAPI 3.0 & Swagger Hub
 
 - Drag-and-drop or paste OpenAPI 3.0 / Swagger 2.0 specifications (JSON or YAML).
 - Interactive API documentation with schemas, parameters, tags, and request samples.
 - One-click **"Try in Runner"** action loads documented endpoints straight into the Request Builder.
 - Export collections back to OpenAPI 3.0 JSON format.
 
-### 4. 📦 Multi-Language SDK Generator
+### 5. 📦 Multi-Language SDK Generator
 
 - Auto-generate idiomatic, type-safe API client libraries:
   - **Go**: `net/http` client struct, context timeouts, request wrappers, and error decoders.
@@ -71,7 +90,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
   - **Java**: Modern Java 11+ `HttpClient` implementation.
 - In-browser code preview with one-click copy and source file download.
 
-### 5. 👥 Team Collaboration & Telemetry
+### 6. 👥 Team Collaboration & Telemetry
 
 - **Google Docs-Style Presence**: Live collaborator avatars powered by Gorilla WebSockets.
 - **Role Management**: Workspace owners can switch member roles between **`Editor`** and **`Viewer`**.
@@ -82,7 +101,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
   - Status code distribution breakdown (2xx, 4xx, 5xx).
   - 5-minute time-series throughput charts.
 
-### 6. 📱 Full Mobile, Tablet & Desktop Responsiveness
+### 7. 📱 Full Mobile, Tablet & Desktop Responsiveness
 
 - **Off-Canvas Sidebar Drawer**: On viewports `< 1024px`, the dual-rail sidebar slides in as a mobile drawer with a glassmorphism backdrop. Automatically dismisses upon choosing a request or tab.
 - **Adaptive Navigation Bar**: Hamburger menu button (☰), gracefully truncated workspace/environment names, compact `+` button, and a responsive **More Options** (`...`) dropdown menu.
@@ -91,7 +110,7 @@ Modern backend and frontend teams work with APIs every day, but their workflow i
   - Auto-switches to the Response view immediately upon receiving an API execution response.
 - **Horizontal Scroll Containers**: Request tabs and key-value tables scroll smoothly on small screens.
 
-### 7. 🔐 Dynamic Environment Configuration & Auth
+### 8. 🔐 Dynamic Environment Configuration & Auth
 
 - **Configurable in `.env`**:
   - `JWT_EXPIRATION_HOURS=24`: Configurable token expiration duration (defaults to 24 hours).
