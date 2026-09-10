@@ -475,6 +475,9 @@ func UpdateRequest(c *gin.Context) {
 	req.AuthType = updated.AuthType
 	req.AuthConfig = updated.AuthConfig
 	req.Tests = updated.Tests
+	if updated.DocsMetadata != "" {
+		req.DocsMetadata = updated.DocsMetadata
+	}
 	if updated.CollectionID != "" {
 		req.CollectionID = updated.CollectionID
 	}

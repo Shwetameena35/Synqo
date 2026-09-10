@@ -88,6 +88,7 @@ type RequestItem struct {
 	AuthType     string    `gorm:"type:varchar(32);default:'none'" json:"authType"` // none, bearer, basic, apikey
 	AuthConfig   string    `gorm:"type:text" json:"authConfig"`  // JSON string: {"token": "...", "username": "..."}
 	Tests        string    `gorm:"type:text" json:"tests"`       // JSON string: [{"type": "status_code", "operator": "equals", "value": "200"}]
+	DocsMetadata string    `gorm:"type:text" json:"docsMetadata"` // JSON string: DocMetadata (fields, descriptions, mandatory flags, success/error responses)
 	OrderIndex   int       `gorm:"default:0" json:"orderIndex"`
 	CreatedAt    time.Time `json:"createdAt"`
 	UpdatedAt    time.Time `json:"updatedAt"`

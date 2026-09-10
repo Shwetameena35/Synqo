@@ -419,6 +419,7 @@ export function App() {
       authType: typeof reqData.authType === 'string' ? reqData.authType : 'none',
       authConfig: typeof reqData.authConfig === 'string' ? reqData.authConfig : '{}',
       tests: typeof reqData.tests === 'string' ? reqData.tests : '[]',
+      docsMetadata: typeof reqData.docsMetadata === 'string' ? reqData.docsMetadata : (reqData.docsMetadata ? JSON.stringify(reqData.docsMetadata) : undefined),
       workspaceId: currentWorkspace.id,
       collectionId: targetColId,
     };
@@ -855,6 +856,7 @@ export function App() {
               collections={collections}
               onTryInRunner={handleTryInRunner}
               onOpenImportModal={() => setShowImportModal(true)}
+              onUpdateRequest={handleSaveRequest}
             />
           ) : activeTab === 'sdk' ? (
             <SdkStudio collections={collections} />

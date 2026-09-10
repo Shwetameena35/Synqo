@@ -49,6 +49,33 @@ export interface AssertionResult {
   message: string;
 }
 
+export interface DocField {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
+  required: boolean;
+  description: string;
+  example: string;
+}
+
+export interface DocResponseExample {
+  statusCode: number;
+  statusText: string;
+  description: string;
+  body: string;
+  headers?: Record<string, string>;
+}
+
+export interface DocMetadata {
+  summary?: string;
+  description?: string;
+  fields?: DocField[];
+  headerFields?: DocField[];
+  queryFields?: DocField[];
+  successResponse?: DocResponseExample;
+  errorResponses?: DocResponseExample[];
+  updatedAt?: string;
+}
+
 export interface RequestItem {
   id: string;
   workspaceId: string;
@@ -65,6 +92,7 @@ export interface RequestItem {
   authType: string;
   authConfig: string; // JSON
   tests: string;      // JSON
+  docsMetadata?: string; // JSON string with DocMetadata
   orderIndex: number;
 }
 
