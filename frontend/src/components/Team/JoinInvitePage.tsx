@@ -66,12 +66,10 @@ export const JoinInvitePage: React.FC<JoinInvitePageProps> = ({
     setAuthError(null);
 
     try {
-      let res: { user: User; token: string };
       if (authMode === 'register') {
-        res = await api.register({ name, email, password });
-      } else {
-        res = await api.login({ email, password });
+        await api.register({ name, email, password });
       }
+      const res = await api.login({ email, password });
 
       // Save credentials
       localStorage.setItem('token', res.token);

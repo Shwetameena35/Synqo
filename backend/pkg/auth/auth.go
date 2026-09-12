@@ -76,6 +76,11 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type RegisterResponse struct {
+	Message string        `json:"message"`
+	User    database.User `json:"user"`
+}
+
 type AuthResponse struct {
 	Token string        `json:"token"`
 	User  database.User `json:"user"`
@@ -99,7 +104,7 @@ func GenerateToken(user database.User) (string, error) {
 	return token.SignedString(GetJWTSecret())
 }
 
-// Register creates a new user and returns a token
+// Register creates a new user account without generating a session token
 func Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -156,15 +161,9 @@ func Register(c *gin.Context) {
 		JoinedAt:    time.Now(),
 	})
 
-	token, err := GenerateToken(newUser)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, AuthResponse{
-		Token: token,
-		User:  newUser,
+	c.JSON(http.StatusCreated, RegisterResponse{
+		Message: "User registered successfully. Please sign in with your credentials.",
+		User:    newUser,
 	})
 }
 
