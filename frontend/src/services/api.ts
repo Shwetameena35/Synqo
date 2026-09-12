@@ -66,7 +66,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   register: (data: { name: string; email: string; password: string }) =>
-    fetchJSON<{ token: string; user: User }>(`${API_BASE}/auth/register`, {
+    fetchJSON<{ message: string; user: User }>(`${API_BASE}/auth/register`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
